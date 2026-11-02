@@ -51,7 +51,7 @@
 
 ## 로컬에서 실행
 
-Node.js 20 이상이 필요합니다.
+Node.js 22가 필요합니다 (Vercel도 22.x로 고정).
 
 ```bash
 npm ci
