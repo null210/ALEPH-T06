@@ -244,3 +244,22 @@ test('T06-C82 첫 화면에 공개 안내 문구가 있다', async () => {
   const html = await (await fetch(`${base}/`)).text();
   assert.ok(html.includes('지금은 로그인이 없어 링크를 아는 사람은 누구나 볼 수 있습니다. 남이 봐도 괜찮은 내용만 넣으세요'));
 });
+
+test('Vercel: vercel.json 의 보안 헤더가 서버와 같다 (화면 파일은 CDN 이 내보내므로)', async () => {
+  const conf = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const all = conf.headers.find((h) => h.source === '/(.*)').headers;
+  const csp = all.find((h) => h.key === 'Content-Security-Policy').value;
+  const page = await fetch(`${base}/`);
+  assert.equal(csp, page.headers.get('content-security-policy'));
+  assert.ok(all.some((h) => h.key === 'X-Content-Type-Options' && h.value === 'nosniff'));
+});
+
+test('Vercel: DATABASE_URL 없이 켜지면 자료가 사라지지 않도록 시작을 막는다', async () => {
+  const saved = process.env.VERCEL;
+  process.env.VERCEL = '1';
+  try {
+    await assert.rejects(openDb({ url: '' }), /DATABASE_URL/);
+  } finally {
+    if (saved === undefined) delete process.env.VERCEL; else process.env.VERCEL = saved;
+  }
+});

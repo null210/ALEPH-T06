@@ -1,3 +1,6 @@
+// 데이터베이스 표 정의 (contracts/pds-schema-v2.json 과 같은 내용).
+// Vercel 함수 묶음에 확실히 들어가도록 .sql 파일 대신 JS 문자열로 둔다.
+export const SCHEMA_SQL = `
 -- PDS 플래너 데이터베이스 (contracts/pds-schema-v2.json 과 같은 내용)
 -- 날짜 규칙: 날짜(date)는 'YYYY-MM-DD' 문자열, 시각(timestamptz)은 ISO 8601 UTC 로 주고받는다.
 --           '오늘'은 항상 Asia/Seoul 기준으로 계산한다. 시간 단위는 모두 '분'(정수)이다.
@@ -89,3 +92,4 @@ BEGIN
       FOREIGN KEY (carried_review_id) REFERENCES reviews(id) ON DELETE SET NULL;
   END IF;
 END $$;
+`;

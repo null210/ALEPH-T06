@@ -1,8 +1,8 @@
 {
-  "$comment": "PDS 플래너 최종 데이터베이스 계약. 실제 표는 server/schema.sql 이 만들며, 이 파일과 내용이 같아야 한다.",
+  "$comment": "PDS 플래너 최종 데이터베이스 계약. 실제 표는 server/schema.js 의 SQL 이 만들며, 이 파일과 내용이 같아야 한다.",
   "name": "pds-schema",
   "version": 2,
-  "database": "PostgreSQL 16 (배포: DATABASE_URL 의 PostgreSQL 서버 / 로컬·테스트: PGlite)",
+  "database": "PostgreSQL 16 (배포: Vercel + Neon PostgreSQL (DATABASE_URL) / 로컬·테스트: PGlite)",
   "rules": {
     "ids": "모든 ID는 서버가 만드는 UUID v4. 화면이 ID를 만들지 않는다.",
     "date": "기간·마감일 같은 '날짜'는 PostgreSQL date 로 저장하고 API에서는 시간대 없는 'YYYY-MM-DD' 문자열로 주고받는다. JavaScript Date 로 바꾸지 않아 하루 밀림이 없다.",

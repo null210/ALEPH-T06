@@ -24,8 +24,9 @@
 - 화면 위쪽에 노란 공개 안내 문구가 보입니다.
 
 **④ 안 될 때는 무엇이 보이나요**
-- 서버가 잠들어 있으면 첫 접속에 30초~1분 정도 "불러오는 중…"이 보입니다. 기다린 뒤 새로고침하세요.
-- 데이터베이스에 연결하지 못하면 "화면을 열 수 없습니다 / 서버에서 문제가 생겼습니다" 안내가 보입니다. `/api/health`를 열면 `{"ok":true,"database":"postgres"}`가 아니라 오류가 보입니다.
+- 데이터베이스에 연결하지 못하면 공개 안내 아래에 "화면을 열 수 없습니다"와 "서버에서 문제가 생겼습니다. 잠시 뒤 다시 해 주세요."가 보입니다.
+- 이때 `/api/health`를 열면 `{"ok":true,"database":"postgres"}` 대신 오류가 보입니다.
+- 로그인 화면이 뜨면 배포별 미리보기 주소를 연 것입니다. `xxxx.vercel.app` 형태의 프로덕션 주소로 다시 여세요.
 
 ## 체크리스트와 구현 위치
 
@@ -42,7 +43,7 @@
 | C34–C35 실제 DB 저장·복원 | PostgreSQL, 날짜는 `YYYY-MM-DD` 문자열로 그대로 |
 | C36 내보내기 | 오른쪽 위 "내 자료 전체 내보내기" (`/api/export`) |
 | C57 스크립트 글자 무력화 | 화면은 `textContent`만 사용, CSP로 인라인 스크립트 차단 |
-| C58 비밀키 | 접속 주소는 서버 환경 변수에만, `npm run check:secrets` |
+| C58 비밀키 | 접속 주소는 Vercel 환경 변수에만, `npm run check:secrets` (GitHub Actions가 푸시마다 실행) |
 | C82 공개 안내 | 모든 화면 위쪽 노란 줄 |
 
 자동 테스트(`npm test`)는 위 항목 이름(T06-Cxx)을 그대로 테스트 이름으로 씁니다.
@@ -59,15 +60,23 @@ npm test           # 체크리스트 자동 테스트
 
 `DATABASE_URL`이 없으면 `./.data/pglite`에 PostgreSQL과 같은 엔진(PGlite)으로 파일 데이터베이스를 만듭니다.
 
-## 배포 (무료, 로그인 없이 열리는 주소 만들기)
+## 배포 (Vercel + Neon, 무료)
 
-1. **GitHub**: 새 저장소를 **Public**으로 만들고 이 폴더를 올립니다.
-2. **데이터베이스 (Neon)**: neon.tech에서 무료 프로젝트를 만들고 접속 주소(`postgresql://...?sslmode=require`)를 복사합니다.
-3. **서버 (Render)**: render.com → New → Blueprint → 이 저장소를 고릅니다. `DATABASE_URL` 값을 물으면 2번 주소를 붙여 넣습니다.
-4. 배포가 끝나면 `https://pds-planner-xxxx.onrender.com/api/health`가 `{"ok":true,"database":"postgres"}`인지 확인합니다.
-5. 위의 결과물·소스 주소를 이 README 맨 위에 적습니다.
+1. **GitHub**: 새 저장소를 **Public**으로 만들고 이 폴더를 올립니다. 푸시할 때마다 Actions 탭에서 "검사"(테스트 + 비밀키 검사)가 돌아갑니다.
+2. **Vercel**: vercel.com → Add New → Project → 이 저장소를 Import 합니다. 설정은 건드리지 않고 Deploy 합니다.
+   - Vercel이 `src/index.js`를 Express 앱으로, `public/`을 화면 파일로 알아서 찾습니다.
+   - 이 첫 배포는 DB가 없어 `/api/...`가 오류를 냅니다. 정상입니다.
+3. **데이터베이스**: 프로젝트의 Storage 탭 → Create Database → **Neon** (Postgres) → 이 프로젝트에 연결합니다.
+   - `DATABASE_URL` 환경 변수가 자동으로 들어갑니다.
+4. Deployments 탭에서 최신 배포의 ⋯ → **Redeploy** 합니다. 환경 변수는 다시 배포해야 적용됩니다.
+5. `https://(프로젝트).vercel.app/api/health`가 `{"ok":true,"database":"postgres"}`인지 확인합니다. 표는 첫 요청 때 자동으로 만들어집니다.
+6. **새 시크릿 창**에서 `https://(프로젝트).vercel.app`이 로그인 없이 열리는지 확인하고, 위의 결과물·소스 주소를 README 맨 위에 적습니다.
 
-접속 주소는 Render의 환경 변수 화면에만 넣고, 파일이나 커밋에 적지 않습니다. `.env`는 `.gitignore`에 들어 있습니다.
+주의할 점
+- 제출하는 주소는 프로덕션 주소(`프로젝트이름.vercel.app`)여야 합니다. 배포마다 생기는 긴 미리보기 주소는 Vercel 로그인을 요구할 수 있습니다 (C01).
+- 접속 주소는 Vercel 환경 변수에만 있습니다. 파일이나 커밋에 적지 않습니다. `.env`는 `.gitignore`에 들어 있습니다.
+- `DATABASE_URL` 없이 Vercel에서 켜지면 서버가 일부러 시작하지 않습니다. 자료가 사라지는 임시 저장을 막기 위해서입니다.
+- Vercel에서는 화면 파일을 CDN이 내보냅니다. 그래서 보안 헤더(CSP)는 `vercel.json`에도 같은 값으로 들어 있고, 테스트가 두 값이 같은지 확인합니다.
 
 ## 내 자료 넣기
 
@@ -77,7 +86,7 @@ npm test           # 체크리스트 자동 테스트
 - `seed/my-data.example.json`을 `seed/my-data.json`으로 복사해 내용을 바꾼 뒤 한 번에 넣을 수도 있습니다.
 
 ```bash
-node scripts/seed.js seed/my-data.json https://pds-planner-xxxx.onrender.com
+node scripts/seed.js seed/my-data.json https://(프로젝트).vercel.app
 ```
 
 `seed/my-data.json`은 Git에 올라가지 않습니다.
@@ -86,9 +95,13 @@ node scripts/seed.js seed/my-data.json https://pds-planner-xxxx.onrender.com
 
 ```
 contracts/pds-schema-v2.json   표·항목·관계·날짜 규칙
-server/schema.sql              실제 표를 만드는 SQL
+server/schema.js               실제 표를 만드는 SQL
 server/app.js                  API (검사 규칙, 집계)
 server/db.js                   PostgreSQL / PGlite 연결
+server/index.js                로컬 실행 (npm start)
+src/index.js                   Vercel 진입 파일
+vercel.json                    Vercel 보안 헤더
+.github/workflows/ci.yml       푸시마다 테스트·비밀키 검사
 public/                        화면 (HTML·CSS·JS, 빌드 없음)
 scripts/seed.js                내 자료 넣기
 scripts/check-secrets.js       비밀키 검사
