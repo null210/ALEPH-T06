@@ -92,4 +92,13 @@ BEGIN
       FOREIGN KEY (carried_review_id) REFERENCES reviews(id) ON DELETE SET NULL;
   END IF;
 END $$;
+
+-- Supabase 는 public 스키마의 표를 자체 REST API(anon 키)로도 열어 둔다.
+-- 정책 없이 행 수준 보안(RLS)을 켜서 그 길을 막는다. 이 서버는 표 주인이라 영향이 없다.
+ALTER TABLE plans            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plan_versions    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE task_completions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE work_logs        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews          ENABLE ROW LEVEL SECURITY;
 `;

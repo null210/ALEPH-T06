@@ -2,7 +2,7 @@
   "$comment": "PDS 플래너 최종 데이터베이스 계약. 실제 표는 server/schema.js 의 SQL 이 만들며, 이 파일과 내용이 같아야 한다.",
   "name": "pds-schema",
   "version": 2,
-  "database": "PostgreSQL 16 (배포: Vercel + Neon PostgreSQL (DATABASE_URL) / 로컬·테스트: PGlite)",
+  "database": "PostgreSQL 16 (배포: Vercel + Supabase PostgreSQL (POSTGRES_URL 또는 DATABASE_URL) / 로컬·테스트: PGlite)",
   "rules": {
     "ids": "모든 ID는 서버가 만드는 UUID v4. 화면이 ID를 만들지 않는다.",
     "date": "기간·마감일 같은 '날짜'는 PostgreSQL date 로 저장하고 API에서는 시간대 없는 'YYYY-MM-DD' 문자열로 주고받는다. JavaScript Date 로 바꾸지 않아 하루 밀림이 없다.",
@@ -12,6 +12,7 @@
     "priority": "1 = 높음, 2 = 보통, 3 = 낮음. 숫자가 작을수록 먼저.",
     "soft_delete": "할 일을 지우면 deleted_at 에 시각만 적는다. 목록·검색·돌아보기 집계에서 모두 빠진다.",
     "history": "계획을 고치면 고치기 전 행 전체를 plan_versions 에 먼저 복사한 뒤 plans 를 고치고 version 을 1 올린다. plan_versions 는 고치거나 지우지 않는다.",
+    "row_level_security": "모든 표에 RLS 를 켜고 정책은 두지 않는다. Supabase REST API(anon/authenticated)로는 접근할 수 없고, 표 주인인 서버만 읽고 쓴다.",
     "separation": "실행 기록(work_logs)은 계획·할 일의 예상값을 고치지 않는다. 실제 시간은 실행 기록에만 있다."
   },
   "tables": {

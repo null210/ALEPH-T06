@@ -11,13 +11,14 @@ import { createApp } from '../server/app.js';
 // 접속 주소나 비밀번호는 담지 않고, 고칠 방법만 알려 준다
 function explain(err) {
   const byCode = {
-    NO_DATABASE_URL: 'DATABASE_URL 환경 변수가 없습니다. Vercel 프로젝트의 Storage 탭에서 Neon을 연결한 뒤 Redeploy 하세요.',
-    ENOTFOUND: 'DATABASE_URL 의 서버 주소를 찾을 수 없습니다. Neon 접속 주소를 다시 복사해 넣으세요.',
-    ECONNREFUSED: '데이터베이스 서버가 연결을 거절했습니다. DATABASE_URL 의 주소와 포트를 확인하세요.',
-    ETIMEDOUT: '데이터베이스 서버가 응답하지 않습니다. Neon 프로젝트가 켜져 있는지 확인하세요.',
-    '28P01': '데이터베이스 사용자 이름이나 비밀번호가 맞지 않습니다. Neon 접속 주소를 다시 넣으세요.',
-    '3D000': 'DATABASE_URL 에 적힌 데이터베이스가 없습니다.',
-    ERR_INVALID_URL: 'DATABASE_URL 형식이 잘못되었습니다. postgresql:// 로 시작하는 주소여야 합니다.',
+    NO_DATABASE_URL: '데이터베이스 접속 주소(POSTGRES_URL)가 없습니다. Vercel 프로젝트의 Storage(또는 Integrations)에서 Supabase를 연결한 뒤 Redeploy 하세요.',
+    ENOTFOUND: '접속 주소의 서버를 찾을 수 없습니다. Supabase 연결을 다시 하거나 주소를 확인하세요.',
+    ECONNREFUSED: '데이터베이스 서버가 연결을 거절했습니다. 접속 주소와 포트를 확인하세요.',
+    ETIMEDOUT: '데이터베이스 서버가 응답하지 않습니다. Supabase 프로젝트가 일시 정지(Paused) 상태인지 확인하세요.',
+    '28P01': '데이터베이스 사용자 이름이나 비밀번호가 맞지 않습니다. Supabase에서 비밀번호를 바꿨다면 연결을 다시 하세요.',
+    '3D000': '접속 주소에 적힌 데이터베이스가 없습니다.',
+    SELF_SIGNED_CERT_IN_CHAIN: 'SSL 인증서 확인에 실패했습니다. 최신 코드로 다시 배포하세요.',
+    ERR_INVALID_URL: '접속 주소 형식이 잘못되었습니다. postgresql:// 로 시작하는 주소여야 합니다.',
   };
   const code = err.code ?? (/Invalid URL/i.test(err.message ?? '') ? 'ERR_INVALID_URL' : 'UNKNOWN');
   return { code, error: byCode[code] ?? '데이터베이스에 연결하지 못했습니다. Vercel 의 Runtime Logs 에서 자세한 내용을 확인하세요.' };

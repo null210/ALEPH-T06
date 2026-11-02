@@ -263,3 +263,28 @@ test('Vercel: DATABASE_URL 없이 켜지면 자료가 사라지지 않도록 시
     if (saved === undefined) delete process.env.VERCEL; else process.env.VERCEL = saved;
   }
 });
+
+test('Supabase: Vercel 연동이 넣는 POSTGRES_URL 을 읽고, DATABASE_URL 이 있으면 그것을 먼저 쓴다', async () => {
+  const { databaseUrlFromEnv } = await import('../server/db.js');
+  assert.equal(databaseUrlFromEnv({ POSTGRES_URL: 'postgres://a' }), 'postgres://a');
+  assert.equal(databaseUrlFromEnv({ DATABASE_URL: 'postgres://d', POSTGRES_URL: 'postgres://a' }), 'postgres://d');
+  assert.equal(databaseUrlFromEnv({}), '');
+});
+
+test('Supabase: 주소의 sslmode 를 지우고 SSL 은 옵션으로 켠다 (self-signed 오류 방지), 로컬은 SSL 없음', async () => {
+  const { pgConfig } = await import('../server/db.js');
+  const c = pgConfig('postgres://postgres.abc:PASSWORD@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x');
+  assert.doesNotMatch(c.connectionString, /sslmode|supa=/);
+  assert.match(c.connectionString, /pooler\.supabase\.com:6543\/postgres$/);
+  assert.deepEqual(c.ssl, { rejectUnauthorized: false });
+  assert.equal(pgConfig('postgresql://USER:PASSWORD@127.0.0.1:5432/x').ssl, undefined);
+  assert.equal(pgConfig('postgresql://USER:PASSWORD@db.example.com/x?sslmode=disable').ssl, undefined);
+});
+
+test('Supabase: 모든 표에 행 수준 보안(RLS)이 켜져 있어 Supabase REST API(anon 키)로는 열리지 않는다', async () => {
+  const rows = await db.query(
+    `SELECT relname, relrowsecurity FROM pg_class
+      WHERE relname IN ('plans','plan_versions','tasks','task_completions','work_logs','reviews') ORDER BY relname`);
+  assert.equal(rows.length, 6);
+  assert.ok(rows.every((r) => r.relrowsecurity), JSON.stringify(rows));
+});

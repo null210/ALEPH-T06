@@ -1,7 +1,7 @@
 # 제출문
 
-결과물: `https://(배포 주소)`
-소스: `https://github.com/(내 계정)/pds-planner`
+결과물: https://alepht06.vercel.app
+소스: https://github.com/null210/ALEPH-T06
 
 ## ① AI에게 맡긴 일
 

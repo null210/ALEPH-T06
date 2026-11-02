@@ -1,5 +1,6 @@
 // 데이터베이스 연결.
-// - 배포: 환경 변수 DATABASE_URL 이 있으면 PostgreSQL 서버에 연결한다.
+// - 배포: PostgreSQL 접속 주소가 환경 변수에 있으면 그 서버에 연결한다.
+//   Vercel 에 Supabase 를 연결하면 POSTGRES_URL 이 자동으로 들어온다. DATABASE_URL 을 직접 넣어도 된다.
 // - 로컬/테스트: 없으면 PGlite(같은 PostgreSQL 엔진을 파일로 돌리는 것)를 쓴다.
 // 접속 주소(비밀값)는 서버 환경 변수에만 있고, 브라우저나 응답·로그로 나가지 않는다.
 import { SCHEMA_SQL } from './schema.js';
@@ -17,11 +18,32 @@ const TIMESTAMPTZ_OID = 1184;
 
 const SCHEMA_LOCK = 724031; // 여러 서버가 동시에 켜져도 표 만들기를 한 번에 하나씩
 
-export async function openDb({ url = process.env.DATABASE_URL, dataDir } = {}) {
+// 접속 주소를 고르는 순서: DATABASE_URL → POSTGRES_URL(Supabase 연동이 넣는 이름)
+export function databaseUrlFromEnv(env = process.env) {
+  return env.DATABASE_URL || env.POSTGRES_URL || '';
+}
+
+// 주소의 sslmode 같은 SSL 설정은 지우고 SSL 은 아래 ssl 옵션으로만 정한다.
+// (pg 는 주소의 sslmode=require 를 '인증서 끝까지 검증'으로 읽어
+//  Supabase 연결이 self-signed certificate 오류로 실패한다.)
+export function pgConfig(url) {
+  const u = new URL(url);
+  const local = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(u.hostname);
+  const disabled = u.searchParams.get('sslmode') === 'disable';
+  for (const k of [...u.searchParams.keys()]) {
+    if (k.startsWith('ssl') || k === 'supa') u.searchParams.delete(k);
+  }
+  return {
+    connectionString: u.toString(),
+    ssl: local || disabled ? undefined : { rejectUnauthorized: false },
+  };
+}
+
+export async function openDb({ url = databaseUrlFromEnv(), dataDir } = {}) {
   const schema = SCHEMA_SQL;
-  // Vercel 에서는 파일이 남지 않으므로 DATABASE_URL 없이 켜지면 자료가 사라진다. 아예 막는다.
+  // Vercel 에서는 파일이 남지 않으므로 접속 주소 없이 켜지면 자료가 사라진다. 아예 막는다.
   if (!url && process.env.VERCEL) {
-    const err = new Error('DATABASE_URL 환경 변수가 없습니다. Vercel 프로젝트 설정에서 PostgreSQL(Neon)을 연결하세요.');
+    const err = new Error('데이터베이스 접속 주소(POSTGRES_URL 또는 DATABASE_URL)가 없습니다. Vercel 프로젝트에 Supabase를 연결하세요.');
     err.code = 'NO_DATABASE_URL';
     throw err;
   }
@@ -30,18 +52,18 @@ export async function openDb({ url = process.env.DATABASE_URL, dataDir } = {}) {
     const pg = (await import('pg')).default;
     pg.types.setTypeParser(DATE_OID, asDate);
     pg.types.setTypeParser(TIMESTAMPTZ_OID, toIso);
-    const needsSsl = !/localhost|127\.0\.0\.1/.test(url) && !/sslmode=disable/.test(url);
-    const pool = new pg.Pool({
-      connectionString: url,
-      ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
-      max: 5,
-    });
+    const pool = new pg.Pool({ ...pgConfig(url), max: 3, idleTimeoutMillis: 10000 });
+    // Supabase 연결 풀(트랜잭션 모드)에서도 안전하도록 트랜잭션 안에서만 잠그고 표를 만든다
     const setup = await pool.connect();
     try {
-      await setup.query('SELECT pg_advisory_lock($1)', [SCHEMA_LOCK]);
+      await setup.query('BEGIN');
+      await setup.query('SELECT pg_advisory_xact_lock($1)', [SCHEMA_LOCK]);
       await setup.query(schema);
+      await setup.query('COMMIT');
+    } catch (e) {
+      await setup.query('ROLLBACK').catch(() => {});
+      throw e;
     } finally {
-      await setup.query('SELECT pg_advisory_unlock($1)', [SCHEMA_LOCK]).catch(() => {});
       setup.release();
     }
     const run = (client) => async (sql, params = []) => (await client.query(sql, params)).rows;
