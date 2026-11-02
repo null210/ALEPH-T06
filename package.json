@@ -1,0 +1,23 @@
+{
+  "name": "pds-planner",
+  "version": "1.0.0",
+  "description": "계획(Plan)·실행(Do)·돌아보기(See) 할 일 관리",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js",
+    "seed": "node scripts/seed.js",
+    "check:secrets": "node scripts/check-secrets.js"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.10",
+    "express": "5.3.0",
+    "pg": "8.23.1"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

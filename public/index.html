@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDS 플래너</title>
+  <meta name="description" content="계획하고, 실행을 기록하고, 돌아보는 할 일 관리">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" type="module"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="#/"><span class="brand-mark" aria-hidden="true">P·D·S</span> 플래너</a>
+      <nav class="top-nav">
+        <a href="#/">계획 목록</a>
+        <a class="btn ghost small" href="/api/export" download>내 자료 전체 내보내기</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap">
+    <p class="notice" id="public-notice" role="note">
+      <strong>공개 안내</strong>
+      <span>지금은 로그인이 없어 링크를 아는 사람은 누구나 볼 수 있습니다. 남이 봐도 괜찮은 내용만 넣으세요.</span>
+    </p>
+  </div>
+  <main id="app" class="wrap" tabindex="-1">
+    <p class="loading">불러오는 중…</p>
+  </main>
+  <footer class="foot wrap">
+    <p>시간 단위는 모두 분, 날짜와 "오늘"은 서울 시간(Asia/Seoul) 기준입니다. 자료는 서버의 PostgreSQL 데이터베이스에 저장됩니다.</p>
+  </footer>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

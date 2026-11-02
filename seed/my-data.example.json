@@ -1,0 +1,39 @@
+{
+  "_설명": "이 파일을 seed/my-data.json 으로 복사한 뒤, 카드 1에서 실제로 세운 계획과 할 일로 바꿔 쓰세요. [예시] 글자가 남아 있으면 안 됩니다. 시간 단위는 분, 시각은 +09:00(서울)을 붙여 적습니다.",
+  "plan": {
+    "title": "[예시] 11월 첫째 주 개인 프로젝트 마무리",
+    "start_date": "2026-11-02",
+    "end_date": "2026-11-08",
+    "priority": 1,
+    "success_criteria": "[예시] 배포 링크가 시크릿 창에서 열리고, 할 일 5개 중 4개 이상 완료",
+    "estimate_minutes": 600
+  },
+  "tasks": [
+    {
+      "title": "[예시] 데이터베이스 표 설계",
+      "due_date": "2026-11-02", "priority": 1, "tags": ["설계"], "estimate_minutes": 90,
+      "done": true,
+      "logs": [
+        { "started_at": "2026-11-02T10:00:00+09:00", "ended_at": "2026-11-02T11:40:00+09:00", "blocked_reason": "", "note": "버전 표를 따로 두기로 함" }
+      ]
+    },
+    {
+      "title": "[예시] 할 일 화면 만들기",
+      "due_date": "2026-11-03", "priority": 1, "tags": ["화면"], "estimate_minutes": 180,
+      "logs": [
+        { "started_at": "2026-11-03T20:00:00+09:00", "ended_at": "2026-11-03T22:10:00+09:00", "blocked_reason": "날짜가 하루 밀려 보이는 문제", "note": "" }
+      ]
+    },
+    {
+      "title": "[예시] 돌아보기 집계 확인",
+      "due_date": "2026-11-05", "priority": 2, "tags": ["검증"], "estimate_minutes": 60,
+      "logs": [
+        { "started_at": "2026-11-05T19:00:00+09:00", "ended_at": "2026-11-05T19:45:00+09:00", "actual_minutes": 45 }
+      ]
+    },
+    { "title": "[예시] 배포하고 시크릿 창으로 열어 보기", "due_date": "2026-11-06", "priority": 1, "tags": ["배포"], "estimate_minutes": 60 },
+    { "title": "[예시] 제출문 쓰기", "due_date": "2026-11-07", "priority": 2, "tags": ["문서"], "estimate_minutes": 60 }
+  ],
+  "plan_edit": { "estimate_minutes": 720, "success_criteria": "[예시] 배포 링크가 시크릿 창에서 열리고, 할 일 5개 모두 완료" },
+  "review": { "improvement": "[예시] 화면 작업은 예상 시간을 1.5배로 잡는다" }
+}

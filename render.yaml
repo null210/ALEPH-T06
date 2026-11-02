@@ -1,0 +1,14 @@
+# Render 블루프린트: 웹 서비스 하나. 데이터베이스 접속 주소는 Render 화면의 환경 변수에만 넣는다.
+services:
+  - type: web
+    name: pds-planner
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        sync: false
