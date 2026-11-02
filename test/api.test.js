@@ -288,3 +288,8 @@ test('Supabase: 모든 표에 행 수준 보안(RLS)이 켜져 있어 Supabase R
   assert.equal(rows.length, 6);
   assert.ok(rows.every((r) => r.relrowsecurity), JSON.stringify(rows));
 });
+
+test('Vercel: DB 연결 풀에 오류 처리기가 있어 끊긴 연결 때문에 함수가 죽지 않는다', async () => {
+  const src = await readFile(new URL('../server/db.js', import.meta.url), 'utf8');
+  assert.match(src, /pool\.on\('error'/);
+});

@@ -24,6 +24,11 @@ function explain(err) {
   return { code, error: byCode[code] ?? '데이터베이스에 연결하지 못했습니다. Vercel 의 Runtime Logs 에서 자세한 내용을 확인하세요.' };
 }
 
+// 놓친 오류가 있어도 함수 전체가 죽지 않도록 기록만 남긴다 (비밀값은 찍지 않음)
+process.on('unhandledRejection', (err) => {
+  console.error('[unhandledRejection]', err?.code ?? '', String(err?.message ?? err).split('\n')[0]);
+});
+
 let ready = null;
 function getInner() {
   ready ??= openDb()

@@ -53,6 +53,11 @@ export async function openDb({ url = databaseUrlFromEnv(), dataDir } = {}) {
     pg.types.setTypeParser(DATE_OID, asDate);
     pg.types.setTypeParser(TIMESTAMPTZ_OID, toIso);
     const pool = new pg.Pool({ ...pgConfig(url), max: 3, idleTimeoutMillis: 10000 });
+    // 쉬고 있던 연결을 DB 쪽(Supabase 연결 풀 등)이 끊으면 'error' 이벤트가 온다.
+    // 처리기가 없으면 Node 프로세스가 통째로 죽어 Vercel 에서 FUNCTION_INVOCATION_FAILED 가 된다.
+    pool.on('error', (err) => {
+      console.error('[db] 쉬던 연결이 끊김 (다음 요청 때 새로 연결):', err.code ?? '', (err.message ?? '').split('\n')[0]);
+    });
     // Supabase 연결 풀(트랜잭션 모드)에서도 안전하도록 트랜잭션 안에서만 잠그고 표를 만든다
     const setup = await pool.connect();
     try {
