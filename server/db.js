@@ -21,7 +21,9 @@ export async function openDb({ url = process.env.DATABASE_URL, dataDir } = {}) {
   const schema = SCHEMA_SQL;
   // Vercel 에서는 파일이 남지 않으므로 DATABASE_URL 없이 켜지면 자료가 사라진다. 아예 막는다.
   if (!url && process.env.VERCEL) {
-    throw new Error('DATABASE_URL 환경 변수가 없습니다. Vercel 프로젝트 설정에서 PostgreSQL(Neon)을 연결하세요.');
+    const err = new Error('DATABASE_URL 환경 변수가 없습니다. Vercel 프로젝트 설정에서 PostgreSQL(Neon)을 연결하세요.');
+    err.code = 'NO_DATABASE_URL';
+    throw err;
   }
 
   if (url) {
