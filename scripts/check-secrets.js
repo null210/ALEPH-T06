@@ -10,6 +10,8 @@ const PATTERNS = [
   ['GitHub 토큰', /\bgh[pousr]_[A-Za-z0-9]{30,}/],
   ['AWS 액세스 키', /\bAKIA[0-9A-Z]{16}\b/],
   ['비밀키 블록', /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
+  // 7번: 로그인 세션 쿠키 원문 (확인 기록에는 앞 5글자 + "…생략"만 남겨야 한다)
+  ['세션 쿠키 원문', /pds_sid=[A-Za-z0-9_-]{20,}/],
 ];
 
 const findings = [];

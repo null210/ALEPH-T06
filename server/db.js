@@ -94,7 +94,10 @@ export async function openDb({ url = databaseUrlFromEnv(), dataDir } = {}) {
   }
 
   const { PGlite } = await import('@electric-sql/pglite');
-  const db = new PGlite(dataDir ?? process.env.PGLITE_DIR ?? './.data/pglite', {
+  const dir = dataDir ?? process.env.PGLITE_DIR ?? './.data/pglite';
+  // PGlite 는 상위 폴더(.data)가 없으면 만들지 못하고 죽는다. 새로 받은 폴더에서도 npm start 가 되도록 먼저 만든다
+  if (!dir.includes('://')) (await import('node:fs')).mkdirSync(dir, { recursive: true });
+  const db = new PGlite(dir, {
     parsers: { [DATE_OID]: asDate, [TIMESTAMPTZ_OID]: toIso },
   });
   await db.exec(schema);

@@ -93,6 +93,77 @@ BEGIN
   END IF;
 END $$;
 
+-- ===== 7번: 가입·로그인 =====
+-- 비밀번호 원문은 저장하지 않는다. password_hash 는 'scrypt$N$r$p$소금$결과' 형식
+CREATE TABLE IF NOT EXISTS users (
+  id                 uuid PRIMARY KEY,
+  email              text NOT NULL UNIQUE CHECK (email = lower(email) AND length(email) BETWEEN 3 AND 254),
+  password_hash      text NOT NULL CHECK (password_hash LIKE 'scrypt$%'),
+  created_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- 로그인 세션. 쿠키 값(토큰) 자체가 아니라 SHA-256 값만 둔다. 로그아웃하면 행을 지운다
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash         text PRIMARY KEY,
+  user_id            uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  expires_at         timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
+
+-- 로그인 실패 기록 (같은 이메일로 너무 많이 틀리면 잠시 막기)
+CREATE TABLE IF NOT EXISTS login_failures (
+  id                 uuid PRIMARY KEY,
+  email              text NOT NULL,
+  at                 timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS login_failures_email_idx ON login_failures (email, at);
+
+-- 계획의 주인. 할 일·실행 기록·돌아보기는 계획을 거쳐 주인이 정해진다.
+-- 6번 때 넣은 자료는 주인이 비어 있어 아무에게도 보이지 않는다 (OWNER_EMAIL 로 가입하면 가져감)
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES users(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS plans_user_idx ON plans (user_id);
+
+-- ===== 7번: 5일 기록 =====
+-- 1일차 전에 한 번만 정하고 바꾸지 않는 것: 질문·지표·단위·계산 규칙·처음 계획 규칙 (한 사람에 하나)
+CREATE TABLE IF NOT EXISTS experiments (
+  id                 uuid PRIMARY KEY,
+  user_id            uuid NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  question           text NOT NULL CHECK (length(question) BETWEEN 1 AND 300),
+  metric             text NOT NULL CHECK (length(metric) BETWEEN 1 AND 100),
+  unit               text NOT NULL CHECK (length(unit) BETWEEN 1 AND 20),
+  calc_rule          text NOT NULL CHECK (length(calc_rule) BETWEEN 1 AND 500),
+  plan_rule          text NOT NULL CHECK (length(plan_rule) BETWEEN 1 AND 300),
+  created_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- 하루 기록. 날짜는 서버가 정한 '오늘(Asia/Seoul)'만 들어간다. 한 날짜에 한 행, 최대 5일
+CREATE TABLE IF NOT EXISTS daily_entries (
+  id                 uuid PRIMARY KEY,
+  experiment_id      uuid NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+  entry_date         date NOT NULL,
+  day_no             smallint NOT NULL CHECK (day_no BETWEEN 1 AND 5),
+  value              double precision,
+  note               text,
+  phase              text NOT NULL CHECK (phase IN ('before', 'after')),
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  updated_at         timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (experiment_id, entry_date),
+  UNIQUE (experiment_id, day_no)
+);
+
+-- 계획 규칙 변경. 한 번만, 2일차 기록 뒤·3일차 기록 앞에만 만들 수 있다. 1·2일차 기록을 가리킨다
+CREATE TABLE IF NOT EXISTS rule_changes (
+  id                 uuid PRIMARY KEY,
+  experiment_id      uuid NOT NULL UNIQUE REFERENCES experiments(id) ON DELETE CASCADE,
+  day1_entry_id      uuid NOT NULL REFERENCES daily_entries(id) ON DELETE CASCADE,
+  day2_entry_id      uuid NOT NULL REFERENCES daily_entries(id) ON DELETE CASCADE,
+  before_rule        text NOT NULL,
+  after_rule         text NOT NULL CHECK (length(after_rule) BETWEEN 1 AND 300),
+  reason             text NOT NULL CHECK (length(reason) BETWEEN 1 AND 1000),
+  changed_at         timestamptz NOT NULL DEFAULT now()
+);
+
 -- Supabase 는 public 스키마의 표를 자체 REST API(anon 키)로도 열어 둔다.
 -- 정책 없이 행 수준 보안(RLS)을 켜서 그 길을 막는다. 이 서버는 표 주인이라 영향이 없다.
 ALTER TABLE plans            ENABLE ROW LEVEL SECURITY;
@@ -101,4 +172,12 @@ ALTER TABLE tasks            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE task_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE work_logs        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews          ENABLE ROW LEVEL SECURITY;
+
+-- 7번에서 만든 표도 같은 이유로 RLS 를 켠다. 특히 users(비밀번호 저장값)와 sessions 가 REST API 로 새면 안 된다.
+ALTER TABLE users            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE login_failures   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE experiments      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_entries    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rule_changes     ENABLE ROW LEVEL SECURITY;
 `;

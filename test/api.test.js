@@ -7,13 +7,13 @@ import path from 'node:path';
 import { openDb } from '../server/db.js';
 import { createApp, seoulToday } from '../server/app.js';
 
-let db; let server; let base;
+let db; let server; let base; let cookie = '';
 // 테스트 시각: 서울 2026-11-02 08:00 (= UTC 11-01 23:00). UTC 날짜와 서울 날짜가 다른 순간을 일부러 고른다.
 const NOW = new Date('2026-11-01T23:00:00Z');
 
 async function call(method, p, body) {
   const res = await fetch(`${base}/api${p}`, {
-    method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body && JSON.stringify(body),
+    method, headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(cookie ? { Cookie: cookie } : {}) }, body: body && JSON.stringify(body),
   });
   const data = res.status === 204 ? null : await res.json();
   return { status: res.status, data, headers: res.headers };
@@ -27,6 +27,9 @@ before(async () => {
   db = await openDb({ dataDir: 'memory://' });
   server = createApp(db, { now: () => NOW }).listen(0);
   base = `http://localhost:${server.address().port}`;
+  // 7번부터 자료 API 는 로그인해야 열린다. 시험용 계정을 하나 만들고 그 쿠키로 요청한다
+  const r = await fetch(`${base}/api/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'tester@example.com', password: 'test-password-1' }) });
+  cookie = r.headers.get('set-cookie').split(';')[0];
   plan = await ok('POST', '/plans', PLAN);
 });
 after(async () => { server.close(); await db.close(); });
@@ -176,7 +179,10 @@ test('T06-C35 다시 연결해도 ID·날짜·값·단위가 같은 값으로 �
     let d1 = await openDb({ dataDir: dir });
     let s1 = createApp(d1).listen(0);
     const u1 = `http://localhost:${s1.address().port}/api`;
-    const post = (u, p, b) => fetch(u + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then((r) => r.json());
+    let ck = '';
+    const post = (u, p, b) => fetch(u + p, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: ck }, body: JSON.stringify(b) }).then((r) => r.json());
+    const su = await fetch(`${u1}/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'restart@example.com', password: 'restart-pass-1' }) });
+    ck = su.headers.get('set-cookie').split(';')[0];
     const p = await post(u1, '/plans', { ...PLAN, start_date: '2026-12-31', end_date: '2027-01-01' });
     const t = await post(u1, `/plans/${p.id}/tasks`, { title: '경계 날짜', due_date: '2026-12-31', priority: 3, tags: ['연말'], estimate_minutes: 45 });
     const l = await post(u1, `/tasks/${t.id}/logs`, { started_at: '2026-12-31T23:30:00+09:00', ended_at: '2027-01-01T00:15:00+09:00' });
@@ -185,9 +191,10 @@ test('T06-C35 다시 연결해도 ID·날짜·값·단위가 같은 값으로 �
     d1 = await openDb({ dataDir: dir });
     s1 = createApp(d1).listen(0);
     const u2 = `http://localhost:${s1.address().port}/api`;
-    const p2 = await (await fetch(`${u2}/plans/${p.id}`)).json();
-    const t2 = (await (await fetch(`${u2}/plans/${p.id}/tasks`)).json())[0];
-    const l2 = (await (await fetch(`${u2}/tasks/${t.id}/logs`)).json())[0];
+    const get = (u) => fetch(u, { headers: { Cookie: ck } }).then((r) => r.json()); // 재시작 뒤에도 같은 세션이 살아 있다
+    const p2 = await get(`${u2}/plans/${p.id}`);
+    const t2 = (await get(`${u2}/plans/${p.id}/tasks`))[0];
+    const l2 = (await get(`${u2}/tasks/${t.id}/logs`))[0];
     assert.equal(p2.id, p.id);
     assert.equal(p2.start_date, '2026-12-31');
     assert.equal(p2.end_date, '2027-01-01');
@@ -240,9 +247,10 @@ test('T06-C58 브라우저로 가는 파일과 응답에 DB 접속 주소가 없
   assert.doesNotMatch(JSON.stringify(notFound.data), /postgres|stack|at /i);
 });
 
-test('T06-C82 첫 화면에 공개 안내 문구가 있다', async () => {
+test('T07 첫 화면 안내 문구가 "로그인한 본인에게만 보인다"로 바뀌었다', async () => {
   const html = await (await fetch(`${base}/`)).text();
-  assert.ok(html.includes('지금은 로그인이 없어 링크를 아는 사람은 누구나 볼 수 있습니다. 남이 봐도 괜찮은 내용만 넣으세요'));
+  assert.ok(html.includes('내 자료는 로그인한 본인에게만 보입니다'));
+  assert.ok(!html.includes('링크를 아는 사람은 누구나 볼 수 있습니다'));
 });
 
 test('Vercel: vercel.json 의 보안 헤더가 서버와 같다 (화면 파일은 CDN 이 내보내므로)', async () => {

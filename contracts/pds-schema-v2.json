@@ -13,7 +13,9 @@
     "soft_delete": "할 일을 지우면 deleted_at 에 시각만 적는다. 목록·검색·돌아보기 집계에서 모두 빠진다.",
     "history": "계획을 고치면 고치기 전 행 전체를 plan_versions 에 먼저 복사한 뒤 plans 를 고치고 version 을 1 올린다. plan_versions 는 고치거나 지우지 않는다.",
     "row_level_security": "모든 표에 RLS 를 켜고 정책은 두지 않는다. Supabase REST API(anon/authenticated)로는 접근할 수 없고, 표 주인인 서버만 읽고 쓴다.",
-    "separation": "실행 기록(work_logs)은 계획·할 일의 예상값을 고치지 않는다. 실제 시간은 실행 기록에만 있다."
+    "separation": "실행 기록(work_logs)은 계획·할 일의 예상값을 고치지 않는다. 실제 시간은 실행 기록에만 있다.",
+    "ownership": "(7번) 모든 자료의 주인은 plans.user_id 하나로 정해진다. 할 일·실행 기록·돌아보기·이전 버전은 계획을 거쳐 주인을 따른다. 모든 API 조회·수정·삭제의 WHERE 에 주인 조건이 들어가고, 남의 ID 는 404 로 답한다.",
+    "auth": "(7번) /api/health, /api/auth/signup, /api/auth/login, /api/auth/logout 말고는 로그인(세션 쿠키 pds_sid)이 있어야 열린다. 없거나 지난 쿠키는 401."
   },
   "tables": {
     "plans": {
@@ -26,7 +28,8 @@
         "priority": { "type": "smallint", "required": true, "check": "1~3" },
         "success_criteria": { "type": "text", "required": true, "check": "1~2000자" },
         "estimate_minutes": { "type": "integer", "required": true, "unit": "minute", "check": ">= 0" },
-        "carried_review_id": { "type": "uuid", "nullable": true, "fk": "reviews.id", "on_delete": "SET NULL", "note": "지난 돌아보기에서 넘겨받은 고칠 점 한 건" },
+        "carried_review_id": { "type": "uuid", "nullable": true, "fk": "reviews.id", "on_delete": "SET NULL", "note": "지난 돌아보기에서 넘겨받은 고칠 점 한 건. 내 돌아보기만 넘겨받을 수 있다" },
+        "user_id": { "type": "uuid", "nullable": true, "fk": "users.id", "on_delete": "CASCADE", "note": "(7번) 계획의 주인. 6번 때 넣은 자료는 비어 있어 아무에게도 안 보인다" },
         "version": { "type": "integer", "default": 1, "note": "고칠 때마다 1 증가" },
         "created_at": { "type": "timestamptz", "default": "now()" },
         "updated_at": { "type": "timestamptz", "default": "now()" }
@@ -98,6 +101,67 @@
         "summary": { "type": "jsonb", "note": "저장 시점의 집계(아래 review_metrics)" },
         "created_at": { "type": "timestamptz", "default": "now()" }
       }
+    },
+    "users": {
+      "description": "(7번) 가입한 사람",
+      "columns": {
+        "id": { "type": "uuid", "pk": true },
+        "email": { "type": "text", "unique": true, "check": "소문자로 저장, 3~254자" },
+        "password_hash": { "type": "text", "note": "원문 없음. 'scrypt$32768$8$1$소금(16바이트, base64)$결과(32바이트, base64)'" },
+        "created_at": { "type": "timestamptz", "default": "now()" }
+      }
+    },
+    "sessions": {
+      "description": "(7번) 로그인 세션. 로그아웃하면 행을 지운다",
+      "columns": {
+        "token_hash": { "type": "text", "pk": true, "note": "쿠키 값(무작위 32바이트)의 SHA-256 16진수. 쿠키 원문은 저장하지 않는다" },
+        "user_id": { "type": "uuid", "fk": "users.id", "on_delete": "CASCADE" },
+        "created_at": { "type": "timestamptz", "default": "now()" },
+        "expires_at": { "type": "timestamptz", "note": "만든 뒤 7일" }
+      }
+    },
+    "experiments": {
+      "description": "(7번) 5일 기록의 질문·지표·단위·계산 규칙·처음 계획 규칙. 한 사람에 하나, 만든 뒤 바꾸지 않는다",
+      "columns": {
+        "id": { "type": "uuid", "pk": true },
+        "user_id": { "type": "uuid", "unique": true, "fk": "users.id", "on_delete": "CASCADE" },
+        "question": { "type": "text" }, "metric": { "type": "text" }, "unit": { "type": "text" },
+        "calc_rule": { "type": "text" }, "plan_rule": { "type": "text" },
+        "created_at": { "type": "timestamptz", "default": "now()" }
+      }
+    },
+    "daily_entries": {
+      "description": "(7번) 하루 기록. entry_date 는 서버가 정한 오늘(Asia/Seoul)만. 한 날짜 한 행, 최대 5일",
+      "columns": {
+        "id": { "type": "uuid", "pk": true },
+        "experiment_id": { "type": "uuid", "fk": "experiments.id", "on_delete": "CASCADE" },
+        "entry_date": { "type": "date", "format": "YYYY-MM-DD" },
+        "day_no": { "type": "smallint", "check": "1~5" },
+        "value": { "type": "double precision", "nullable": true, "note": "null 이면 '빠짐'" },
+        "note": { "type": "text", "nullable": true },
+        "phase": { "type": "text", "enum": ["before", "after"] },
+        "created_at": { "type": "timestamptz" }, "updated_at": { "type": "timestamptz" }
+      },
+      "unique": [["experiment_id", "entry_date"], ["experiment_id", "day_no"]]
+    },
+    "rule_changes": {
+      "description": "(7번) 계획 규칙 변경. 한 번만, 기록이 정확히 2일일 때만. 1·2일차 기록을 가리킨다",
+      "columns": {
+        "id": { "type": "uuid", "pk": true },
+        "experiment_id": { "type": "uuid", "unique": true, "fk": "experiments.id", "on_delete": "CASCADE" },
+        "day1_entry_id": { "type": "uuid", "fk": "daily_entries.id" },
+        "day2_entry_id": { "type": "uuid", "fk": "daily_entries.id" },
+        "before_rule": { "type": "text" }, "after_rule": { "type": "text" }, "reason": { "type": "text" },
+        "changed_at": { "type": "timestamptz", "default": "now()" }
+      }
+    },
+    "login_failures": {
+      "description": "(7번) 로그인 실패 기록. 같은 이메일로 15분 안에 10번 틀리면 15분 동안 로그인을 막는다",
+      "columns": {
+        "id": { "type": "uuid", "pk": true },
+        "email": { "type": "text" },
+        "at": { "type": "timestamptz", "default": "now()" }
+      }
     }
   },
   "relations": [
@@ -106,7 +170,9 @@
     { "from": "task_completions.task_id", "to": "tasks.id", "kind": "many-to-one" },
     { "from": "work_logs.task_id", "to": "tasks.id", "kind": "many-to-one" },
     { "from": "reviews.plan_id", "to": "plans.id", "kind": "many-to-one" },
-    { "from": "plans.carried_review_id", "to": "reviews.id", "kind": "many-to-one (optional)" }
+    { "from": "plans.carried_review_id", "to": "reviews.id", "kind": "many-to-one (optional)" },
+    { "from": "plans.user_id", "to": "users.id", "kind": "many-to-one" },
+    { "from": "sessions.user_id", "to": "users.id", "kind": "many-to-one" }
   ],
   "review_metrics": {
     "target_tasks": "plan_id 가 그 계획이고 deleted_at IS NULL 인 할 일",
@@ -122,6 +188,7 @@
   "export": {
     "endpoint": "GET /api/export",
     "file": "pds-export-YYYY-MM-DD.json (날짜는 서울 기준)",
-    "contains": ["plans", "plan_versions", "tasks", "task_completions", "work_logs", "reviews"]
+    "contains": ["user", "plans", "plan_versions", "tasks", "task_completions", "work_logs", "reviews", "diary"],
+    "scope": "(7번) 로그인한 사람의 자료만. 비밀번호 저장값·세션은 넣지 않는다"
   }
 }

@@ -33,9 +33,30 @@ async function api(method, url, body) {
   if (res.status === 204) return null;
   let data = null;
   try { data = await res.json(); } catch { /* 빈 응답 */ }
+  // 로그인이 풀렸으면(로그아웃·만료) 어느 화면에 있든 로그인 화면으로 보낸다
+  if (res.status === 401 && !url.startsWith('/auth/')) { setUser(null); throw new NeedLogin(); }
   if (!res.ok) throw new Error(data?.error ?? `요청이 실패했습니다 (${res.status}).`);
   return data;
 }
+class NeedLogin extends Error { constructor() { super('로그인이 필요합니다.'); } }
+
+// ---------- 로그인 상태 ----------
+let me; // undefined = 아직 모름, null = 로그인 안 함
+const nav = document.getElementById('top-nav');
+function setUser(user) {
+  me = user;
+  nav.hidden = !user;
+  document.getElementById('who').textContent = user ? user.email : '';
+}
+document.getElementById('logout').addEventListener('click', async (ev) => {
+  await busy(ev.currentTarget, async () => {
+    try { await api('POST', '/auth/logout'); } catch { /* 이미 풀렸어도 로그인 화면으로 */ }
+    setUser(null);
+    toast('로그아웃했습니다.');
+    location.hash = '#/';
+    route();
+  });
+});
 
 let toastTimer;
 function toast(msg, isError = false) {
@@ -108,9 +129,17 @@ async function route() {
   const { parts, params } = parseHash();
   app.replaceChildren(h('p', { class: 'loading' }, '불러오는 중…'));
   try {
+    if (me === undefined) {
+      try { setUser((await api('GET', '/auth/me')).user); } catch { setUser(null); }
+    }
+    // 로그인 전에는 어떤 주소(#/plan/... 포함)로 와도 로그인 화면만 보인다
+    if (!me) return renderAuth(parts[0] === 'signup' ? 'signup' : 'login');
     if (parts[0] === 'plan' && parts[1]) await renderPlan(parts[1], parts[2] ?? 'tasks', params);
+    else if (parts[0] === 'diary') await renderDiary();
+    else if (parts[0] === 'account') renderAccount();
     else await renderHome(params);
   } catch (e) {
+    if (e instanceof NeedLogin) return renderAuth('login');
     app.replaceChildren(h('div', { class: 'panel' },
       h('h1', {}, '화면을 열 수 없습니다'), h('p', {}, e.message), h('p', {}, h('a', { href: '#/' }, '계획 목록으로 가기'))));
   }
@@ -118,10 +147,55 @@ async function route() {
 window.addEventListener('hashchange', route);
 route();
 
+// ---------- 로그인·가입 화면 ----------
+function renderAuth(mode) {
+  document.title = mode === 'signup' ? '가입 · PDS 플래너' : '로그인 · PDS 플래너';
+  const signup = mode === 'signup';
+  const err = errorLine();
+  const form = h('form', { class: 'form-grid', novalidate: true },
+    field('이메일', h('input', { type: 'email', name: 'email', id: 'auth-email', required: true, autocomplete: 'username', maxlength: 254 }), 'wide'),
+    field(signup ? '비밀번호 (8자 이상)' : '비밀번호',
+      h('input', { type: 'password', name: 'password', id: 'auth-password', required: true, minlength: signup ? 8 : null, maxlength: 200, autocomplete: signup ? 'new-password' : 'current-password' }), 'wide'),
+    signup ? field('비밀번호 한 번 더', h('input', { type: 'password', name: 'password2', id: 'auth-password2', required: true, autocomplete: 'new-password' }), 'wide') : null,
+    h('div', { class: 'form-actions wide' }, h('button', { class: 'btn', type: 'submit', id: 'auth-submit' }, signup ? '가입하고 시작하기' : '로그인')),
+    err);
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    busy(form.querySelector('button[type=submit]'), async () => {
+      err.hidden = true;
+      // 비밀번호는 trim 하지 않는다 (앞뒤 공백도 비밀번호의 일부)
+      const fd = new FormData(form);
+      const body = { email: String(fd.get('email')).trim(), password: String(fd.get('password')) };
+      try {
+        if (signup && body.password !== String(fd.get('password2'))) throw new Error('두 비밀번호가 같지 않습니다.');
+        const out = await api('POST', signup ? '/auth/signup' : '/auth/login', body);
+        setUser(out.user);
+        toast(signup ? '가입했습니다. 이제 내 계획을 세워 보세요.' : '로그인했습니다.');
+        if (location.hash.startsWith('#/signup') || !location.hash) location.hash = '#/';
+        route();
+      } catch (e) { showError(err, e); }
+    });
+  });
+  app.replaceChildren(h('section', { class: 'panel auth' },
+    h('h1', {}, signup ? '가입' : '로그인'),
+    h('p', { class: 'hint' }, '로그인해야 내 계획·할 일·실행 기록이 보입니다. 다른 사람의 자료는 보이지 않습니다.'),
+    h('nav', { class: 'auth-switch', 'aria-label': '로그인 또는 가입' },
+      h('a', { href: '#/login', 'aria-current': signup ? null : 'page' }, '로그인'), ' · ',
+      h('a', { href: '#/signup', 'aria-current': signup ? 'page' : null }, '처음이면 가입')),
+    form));
+  form.querySelector('#auth-email').focus();
+}
+
 // ---------- 첫 화면: 계획 목록 + 새 계획 ----------
 async function renderHome(params) {
-  const [plans, reviews] = await Promise.all([api('GET', '/plans'), api('GET', '/reviews')]);
+  const [plans, reviews, diary] = await Promise.all([api('GET', '/plans'), api('GET', '/reviews'), api('GET', '/diary')]);
   document.title = 'PDS 플래너';
+  const todayBox = h('a', { class: 'today-banner', href: '#/diary' },
+    h('b', {}, `오늘(서울) ${fmtDate(diary.today)}`),
+    !diary.experiment ? '5일 기록을 아직 시작하지 않았습니다. 질문·지표부터 정하기 →'
+      : diary.today_entry ? `오늘 ${diary.today_entry.day_no}일차 기록을 남겼습니다. 고치려면 누르세요 →`
+        : diary.entries.length >= 5 ? '5일 기록을 모두 마쳤습니다. 결과 보기 →'
+          : `오늘 ${diary.entries.length + 1}일차 기록을 아직 남기지 않았습니다 →`);
 
   const list = plans.length
     ? h('ul', { class: 'plan-list' }, plans.map((p) => h('li', {},
@@ -132,6 +206,7 @@ async function renderHome(params) {
     : h('p', { class: 'empty' }, '아직 계획이 없습니다. 오른쪽에서 첫 계획을 세워 보세요.');
 
   app.replaceChildren(
+    todayBox,
     h('div', { class: 'home' },
       h('section', { class: 'panel' },
         h('div', { class: 'panel-head' }, h('h1', {}, '내 계획'), h('span', { class: 'hint' }, `${plans.length}개`)),
@@ -561,4 +636,180 @@ function editView(plan, root) {
           h('dl', {}, FIELDS.map(([k, label]) => [h('dt', {}, label),
             h('dd', {}, h('span', { class: String(v[k]) !== String(newer[k]) ? 'changed' : '' }, show(k, v[k])))])));
       })) : h('p', { class: 'empty' }, '아직 고친 적이 없습니다. 위에서 한 번 고쳐 저장하면 지금 내용이 여기 남습니다.'))));
+}
+
+// ---------- 5일 기록 (로그인 → 오늘 기록) ----------
+const fmtVal = (v, unit) => (v == null ? '빠짐' : `${v}${unit ? ` ${unit}` : ''}`);
+const RULE_LABEL = { missing: '값이 빠졌을 때', duplicate: '같은 날 두 번 저장할 때', outlier: '값이 튈 때', rounding: '반올림', week_start: '주 시작 요일', date: '날짜', compare: '전후 비교' };
+
+async function renderDiary() {
+  const d = await api('GET', '/diary');
+  document.title = '오늘 기록 · PDS 플래너';
+  const rulesBox = h('section', { class: 'panel' }, h('h2', {}, '기록 처리 규칙 (앱이 이 문장대로 계산합니다)'),
+    h('dl', { class: 'rules' }, Object.entries(d.rules).map(([k, v]) => [h('dt', {}, RULE_LABEL[k] ?? k), h('dd', {}, v)])));
+
+  if (!d.experiment) {
+    const err = errorLine();
+    const form = h('form', { class: 'form-grid', novalidate: true },
+      field('1일차에 답하려는 질문 (한 문장)', h('input', { name: 'question', id: 'ex-question', required: true, maxlength: 300, placeholder: '예: 할 일 예상 시간을 넉넉히 잡으면 실제와의 차이가 줄어드는가?' }), 'wide'),
+      field('관찰 지표 (하나)', h('input', { name: 'metric', id: 'ex-metric', required: true, maxlength: 100, placeholder: '예: 하루 예상 대비 실제 시간 차이' })),
+      field('단위', h('input', { name: 'unit', id: 'ex-unit', required: true, maxlength: 20, placeholder: '예: 분' })),
+      field('계산 규칙 (사람이 읽는 문장)', h('textarea', { name: 'calc_rule', id: 'ex-calc', required: true, maxlength: 500, placeholder: '예: 그날 마감인 할 일들의 (실제 시간 합 − 예상 시간 합). 실제가 길면 +' }), 'wide'),
+      field('처음 계획 규칙 (1·2일차)', h('input', { name: 'plan_rule', id: 'ex-rule', required: true, maxlength: 300, placeholder: '예: 할 일 예상 시간은 떠오르는 대로 적는다' }), 'wide'),
+      h('div', { class: 'form-actions wide' }, h('button', { class: 'btn', type: 'submit' }, '이대로 정하기'),
+        h('span', { class: 'hint' }, '한 번 정하면 5일 동안 바꿀 수 없습니다. 계획 규칙은 2일차 뒤에 딱 한 번 바꿉니다.')), err);
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      busy(form.querySelector('button'), async () => {
+        try { await api('POST', '/diary/setup', formData(form)); toast('정했습니다. 이제 오늘 기록을 남기세요.'); await renderDiary(); } catch (e) { showError(err, e); }
+      });
+    });
+    app.replaceChildren(h('section', { class: 'panel' }, h('h1', {}, '5일 기록 시작하기'),
+      h('p', { class: 'hint' }, `오늘(서울) ${fmtDate(d.today)}. 기록은 로그인한 내 계정에만 저장되고, 날짜는 서버가 정한 오늘로만 들어갑니다.`), form), rulesBox);
+    return;
+  }
+
+  const ex = d.experiment;
+  const n = d.entries.length;
+  const head = h('section', { class: 'plan-head' },
+    h('h1', {}, '5일 기록'),
+    h('dl', { class: 'facts' },
+      h('div', { class: 'span' }, h('dt', {}, '질문'), h('dd', {}, ex.question)),
+      h('div', {}, h('dt', {}, '지표'), h('dd', {}, ex.metric)),
+      h('div', {}, h('dt', {}, '단위'), h('dd', {}, ex.unit)),
+      h('div', {}, h('dt', {}, '정한 시각'), h('dd', { class: 'num' }, fmtTime(ex.created_at))),
+      h('div', { class: 'span' }, h('dt', {}, '계산 규칙'), h('dd', {}, ex.calc_rule)),
+      h('div', { class: 'span' }, h('dt', {}, '지금 계획 규칙'), h('dd', {}, d.current_rule, h('span', { class: 'hint' }, d.rule_change ? ' (3일차부터)' : ' (1·2일차)')))));
+
+  // 오늘 기록 / 규칙 바꾸기
+  let action;
+  const needChange = n === 2 && !d.rule_change && !d.today_entry;
+  if (d.today_entry || (n < 5 && !needChange)) {
+    const t = d.today_entry;
+    const err = errorLine();
+    const form = h('form', { class: 'form-grid', novalidate: true },
+      field(`${ex.metric} (${ex.unit}) — 비우면 "빠짐"`, h('input', { type: 'number', step: 'any', name: 'value', id: 'day-value', inputmode: 'decimal', value: t?.value ?? '' })),
+      field('메모', h('input', { name: 'note', id: 'day-note', maxlength: 1000, value: t?.note ?? '' }), 'wide'),
+      h('div', { class: 'form-actions wide' }, h('button', { class: 'btn', type: 'submit' }, t ? '오늘 기록 고치기' : `${n + 1}일차 기록 저장`),
+        h('span', { class: 'hint' }, t ? `이미 ${t.day_no}일차로 저장했습니다(${fmtTime(t.updated_at)}). 다시 저장하면 오늘 값만 바뀝니다.` : '오늘 날짜로만 저장됩니다.')), err);
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      busy(form.querySelector('button'), async () => {
+        const f = formData(form);
+        try {
+          const r = await api('PUT', '/diary/today', { value: f.value === '' ? null : Number(f.value), note: f.note });
+          toast(r.replaced ? '오늘 값을 바꿨습니다.' : `${r.day_no}일차를 저장했습니다.`);
+          await renderDiary();
+        } catch (e) { showError(err, e); }
+      });
+    });
+    action = h('section', { class: 'panel' }, h('h2', {}, `오늘(서울) ${fmtDate(d.today)} 기록`), form);
+  } else if (needChange) {
+    const err = errorLine();
+    const form = h('form', { class: 'form-grid', novalidate: true },
+      field('바꾸기 전 규칙', h('input', { value: ex.plan_rule, disabled: true }), 'wide'),
+      field('바꾼 규칙 (하나만)', h('input', { name: 'after_rule', id: 'rc-after', required: true, maxlength: 300 }), 'wide'),
+      field('바꾼 이유 (1·2일차 숫자를 근거로)', h('textarea', { name: 'reason', id: 'rc-reason', required: true, maxlength: 1000 }), 'wide'),
+      h('div', { class: 'form-actions wide' }, h('button', { class: 'btn', type: 'submit' }, '규칙 바꾸기 (한 번만)')), err);
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      busy(form.querySelector('button'), async () => {
+        try { await api('POST', '/diary/rule-change', formData(form)); toast('규칙을 바꿨습니다. 이제 3일차를 기록할 수 있습니다.'); await renderDiary(); } catch (e) { showError(err, e); }
+      });
+    });
+    action = h('section', { class: 'panel' }, h('h2', {}, '3일차 전에 계획 규칙 하나 바꾸기'),
+      h('p', { class: 'hint' }, '1·2일차 기록을 마쳤습니다. 3일차를 적기 전에 규칙을 딱 하나 바꿔야 합니다. 바꾼 시각이 함께 저장됩니다.'), form);
+  } else {
+    action = h('section', { class: 'panel' }, h('h2', {}, '5일 기록을 모두 마쳤습니다'), h('p', { class: 'hint' }, '아래 비교와 내보내기 파일을 제출물에 쓰세요.'));
+  }
+
+  // 기록 순서: 1일차, 2일차, [규칙 변경], 3~5일차
+  const row = (e) => h('tr', { class: e.outlier ? 'outlier' : '' },
+    h('td', {}, `${e.day_no}일차`), h('td', { class: 'num' }, fmtDate(e.entry_date)), h('td', { class: 'num' }, `${e.week_monday}(월) 주`),
+    h('td', { class: 'num' }, fmtVal(e.value, ex.unit), e.outlier ? h('span', { class: 'chip late' }, '튐') : null),
+    h('td', {}, e.phase === 'before' ? '바꾸기 전' : '바꾼 뒤'),
+    h('td', { class: 'num' }, fmtTime(e.created_at), e.updated_at !== e.created_at ? ` (고침 ${fmtTime(e.updated_at)})` : ''),
+    h('td', {}, e.note ?? ''));
+  const rows = [];
+  for (const e of d.entries) {
+    rows.push(row(e));
+    if (e.day_no === 2 && d.rule_change) {
+      const rc = d.rule_change;
+      rows.push(h('tr', { class: 'rule-row' }, h('td', { colspan: 7 },
+        h('b', {}, `🔁 계획 규칙 변경 · ${fmtTime(rc.changed_at)}`), h('br'),
+        `"${rc.before_rule}" → "${rc.after_rule}"`, h('br'), `이유: ${rc.reason}`, h('br'),
+        h('span', { class: 'hint' }, `1일차(${d.entries[0].entry_date})·2일차(${d.entries[1].entry_date}) 기록 뒤, 3일차 앞`))));
+    }
+  }
+  const table = d.entries.length
+    ? h('div', { class: 'table-wrap' }, h('table', { class: 'diary' },
+      h('thead', {}, h('tr', {}, ['일차', '날짜', '주', '값', '단계', '저장 시각', '메모'].map((x) => h('th', {}, x)))), h('tbody', {}, rows)))
+    : h('p', { class: 'empty' }, '아직 기록이 없습니다.');
+
+  // 화면 합계·평균과 손으로 더한 식
+  const s = d.summary;
+  const calc = (p, label) => {
+    const nums = p.values.map((v) => (v == null ? '빠짐' : v));
+    return h('div', { class: 'calc' }, h('h3', {}, label),
+      p.days ? [
+        h('p', {}, `기록한 날 ${p.days}일 · 값 있는 날 ${p.filled}일 · 빠진 날 ${p.missing}일`),
+        h('p', { class: 'num' }, `합계 = ${nums.join(' + ')} = ${p.sum ?? '없음'}${p.sum != null ? ` ${ex.unit}` : ''}`),
+        h('p', { class: 'num' }, `평균 = ${p.sum ?? '없음'} ÷ ${p.filled} = ${p.average ?? '없음'}${p.average != null ? ` ${ex.unit}` : ''}`),
+      ] : h('p', { class: 'hint' }, '아직 기록 없음'));
+  };
+  const compare = h('section', { class: 'panel' }, h('h2', {}, '규칙 바꾸기 전후 비교 (같은 지표·단위·계산 규칙)'),
+    h('div', { class: 'calc-grid' }, calc(s.before, '바꾸기 전 (1·2일차)'), calc(s.after, '바꾼 뒤 (3~5일차)')),
+    h('p', {}, h('b', {}, '평균 차이(뒤 − 전): '), s.diff_average == null ? '아직 비교할 수 없음' : `${signed(s.diff_average)} ${ex.unit}`));
+
+  app.replaceChildren(head, action, h('section', { class: 'panel' }, h('h2', {}, `기록 (${n}/5일)`), table), compare, rulesBox);
+}
+
+// ---------- 계정: 비밀번호 바꾸기 · 계정 지우기 ----------
+function renderAccount() {
+  document.title = '계정 · PDS 플래너';
+  const pwErr = errorLine();
+  const pwForm = h('form', { class: 'form-grid', novalidate: true },
+    field('지금 비밀번호', h('input', { type: 'password', name: 'current_password', id: 'pw-current', required: true, autocomplete: 'current-password' }), 'wide'),
+    field('새 비밀번호 (8자 이상)', h('input', { type: 'password', name: 'new_password', id: 'pw-new', required: true, minlength: 8, autocomplete: 'new-password' }), 'wide'),
+    h('div', { class: 'form-actions wide' }, h('button', { class: 'btn', type: 'submit' }, '비밀번호 바꾸기'),
+      h('span', { class: 'hint' }, '바꾸면 다른 기기와 예전 로그인은 모두 끊기고, 이 기기만 새로 로그인된 상태로 남습니다.')), pwErr);
+  pwForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    busy(pwForm.querySelector('button'), async () => {
+      const fd = new FormData(pwForm);
+      try {
+        await api('POST', '/auth/password', { current_password: String(fd.get('current_password')), new_password: String(fd.get('new_password')) });
+        pwForm.reset();
+        toast('비밀번호를 바꿨습니다. 다른 기기의 로그인은 끊겼습니다.');
+      } catch (e) { showError(pwErr, e); }
+    });
+  });
+
+  const delErr = errorLine();
+  const delForm = h('form', { class: 'form-grid', novalidate: true },
+    field('비밀번호를 다시 적어 확인', h('input', { type: 'password', name: 'password', id: 'del-password', required: true, autocomplete: 'current-password' }), 'wide'),
+    h('label', { class: 'check wide' }, h('input', { type: 'checkbox', name: 'sure', id: 'del-sure' }), '모든 자료가 지워지고 되돌릴 수 없다는 것을 알았습니다'),
+    h('div', { class: 'form-actions wide' }, h('button', { class: 'btn danger', type: 'submit' }, '계정과 내 자료 모두 지우기')), delErr);
+  delForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    busy(delForm.querySelector('button'), async () => {
+      const fd = new FormData(delForm);
+      try {
+        if (!fd.get('sure')) throw new Error('지워진다는 것을 확인하는 칸에 표시해 주세요.');
+        await api('DELETE', '/auth/account', { password: String(fd.get('password')) });
+        setUser(null);
+        toast('계정과 모든 자료를 지웠습니다.');
+        location.hash = '#/';
+        route();
+      } catch (e) { showError(delErr, e); }
+    });
+  });
+
+  app.replaceChildren(
+    h('section', { class: 'panel' }, h('h1', {}, '계정'), h('p', {}, `로그인한 이메일: ${me.email}`),
+      h('p', {}, h('a', { class: 'btn ghost small', href: '/api/export', download: true }, '내 자료 전체를 파일 하나로 내보내기'))),
+    h('section', { class: 'panel' }, h('h2', {}, '비밀번호 바꾸기'), pwForm),
+    h('section', { class: 'panel danger-zone' }, h('h2', {}, '계정 지우기'),
+      h('p', { class: 'warn', id: 'delete-notice' }, '계정을 지우면 계획·할 일·실행 기록·돌아보기·5일 기록이 모두 함께 지워지고 되돌릴 수 없습니다. 먼저 위에서 내 자료를 내보내 두세요.'),
+      delForm));
 }

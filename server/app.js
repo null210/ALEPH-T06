@@ -2,6 +2,8 @@ import express from 'express';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { authRoutes, sameOriginOnly } from './auth.js';
+import { diaryRoutes } from './diary.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const TIME_ZONE = 'Asia/Seoul';
@@ -85,6 +87,8 @@ export function createApp(db, { now = () => new Date() } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('json spaces', 0);
+  // Vercel 은 앞단에서 https 를 받아 넘겨준다. 그래야 req.secure 가 참이 되어 쿠키에 Secure 가 붙는다
+  if (process.env.VERCEL) app.set('trust proxy', true);
 
   // 스크립트 주입을 막는 보안 헤더. 이 사이트의 파일 말고는 스크립트를 실행하지 않는다.
   app.use((req, res, next) => {
@@ -103,14 +107,28 @@ export function createApp(db, { now = () => new Date() } = {}) {
   const q = db.query;
   const api = express.Router();
 
-  // ----- 공통 조회 -----
-  async function getPlan(id, run = q) {
-    const rows = await run('SELECT * FROM plans WHERE id = $1', [uuid(id)]);
+  // ----- 로그인 -----
+  // /api/health 와 /api/auth/* (가입·로그인·로그아웃) 말고는 모두 로그인해야 열린다.
+  api.use(sameOriginOnly);
+  api.get('/health', async (req, res) => {
+    await q('SELECT 1');
+    res.json({ ok: true, database: db.kind });
+  });
+  const requireUser = authRoutes(db, api);
+  api.use(requireUser);
+  const diary = diaryRoutes(api, db, { now, seoulToday });
+
+  // ----- 공통 조회 (모두 "내 것" 안에서만 찾는다) -----
+  // 남의 계획·할 일 ID 를 넣어도 "없다(404)"가 나온다. 주인 조건이 SQL 의 WHERE 에 들어 있기 때문이다.
+  async function getPlan(id, userId) {
+    const rows = await q('SELECT * FROM plans WHERE id = $1 AND user_id = $2', [uuid(id), userId]);
     if (!rows[0]) throw new NotFound('계획을 찾을 수 없습니다.');
     return rows[0];
   }
-  async function getTask(id, run = q) {
-    const rows = await run('SELECT * FROM tasks WHERE id = $1 AND deleted_at IS NULL', [uuid(id)]);
+  async function getTask(id, userId) {
+    const rows = await q(
+      `SELECT t.* FROM tasks t JOIN plans p ON p.id = t.plan_id
+        WHERE t.id = $1 AND t.deleted_at IS NULL AND p.user_id = $2`, [uuid(id), userId]);
     if (!rows[0]) throw new NotFound('할 일을 찾을 수 없습니다.');
     return rows[0];
   }
@@ -121,7 +139,8 @@ export function createApp(db, { now = () => new Date() } = {}) {
     if (plan.carried_review_id) {
       const r = await q(
         `SELECT r.id, r.improvement, r.created_at, p.id AS from_plan_id, p.title AS from_plan_title
-           FROM reviews r JOIN plans p ON p.id = r.plan_id WHERE r.id = $1`, [plan.carried_review_id]);
+           FROM reviews r JOIN plans p ON p.id = r.plan_id WHERE r.id = $1 AND p.user_id = $2`,
+        [plan.carried_review_id, plan.user_id]);
       carried = r[0] ?? null;
     }
     return { ...plan, versions, carried_improvement: carried };
@@ -145,34 +164,37 @@ export function createApp(db, { now = () => new Date() } = {}) {
       `SELECT p.*,
               (SELECT count(*)::int FROM tasks t WHERE t.plan_id = p.id AND t.deleted_at IS NULL) AS task_count,
               (SELECT count(*)::int FROM tasks t WHERE t.plan_id = p.id AND t.deleted_at IS NULL AND t.status = 'done') AS done_count
-         FROM plans p ORDER BY p.start_date DESC, p.created_at DESC`));
+         FROM plans p WHERE p.user_id = $1 ORDER BY p.start_date DESC, p.created_at DESC`, [req.user.id]));
   });
 
   api.post('/plans', async (req, res) => {
     const f = planFields(req.body ?? {});
     let carried = null;
     if (req.body?.carried_review_id) {
-      const r = await q('SELECT id FROM reviews WHERE id = $1', [uuid(req.body.carried_review_id)]);
+      // 남의 돌아보기를 넘겨받으면 그 사람의 고칠 점이 내 화면에 보이게 된다. 내 돌아보기만 받는다
+      const r = await q(
+        'SELECT r.id FROM reviews r JOIN plans p ON p.id = r.plan_id WHERE r.id = $1 AND p.user_id = $2',
+        [uuid(req.body.carried_review_id), req.user.id]);
       if (!r[0]) throw new BadInput('넘겨받을 돌아보기를 찾을 수 없습니다.');
       carried = r[0].id;
     }
     const id = randomUUID();
     const [plan] = await q(
-      `INSERT INTO plans (id, title, start_date, end_date, priority, success_criteria, estimate_minutes, carried_review_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [id, f.title, f.start_date, f.end_date, f.priority, f.success_criteria, f.estimate_minutes, carried]);
+      `INSERT INTO plans (id, title, start_date, end_date, priority, success_criteria, estimate_minutes, carried_review_id, user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [id, f.title, f.start_date, f.end_date, f.priority, f.success_criteria, f.estimate_minutes, carried, req.user.id]);
     res.status(201).json(await planWithExtras(plan));
   });
 
   api.get('/plans/:id', async (req, res) => {
-    res.json(await planWithExtras(await getPlan(req.params.id)));
+    res.json(await planWithExtras(await getPlan(req.params.id, req.user.id)));
   });
 
   // 고치기 전 내용을 plan_versions 에 먼저 남기고 나서 고친다
   api.put('/plans/:id', async (req, res) => {
     const f = planFields(req.body ?? {});
     const plan = await db.tx(async (t) => {
-      const [cur] = await t('SELECT * FROM plans WHERE id = $1 FOR UPDATE', [uuid(req.params.id)]);
+      const [cur] = await t('SELECT * FROM plans WHERE id = $1 AND user_id = $2 FOR UPDATE', [uuid(req.params.id), req.user.id]);
       if (!cur) throw new NotFound('계획을 찾을 수 없습니다.');
       await t(
         `INSERT INTO plan_versions (id, plan_id, version, title, start_date, end_date, priority, success_criteria, estimate_minutes, saved_at)
@@ -209,12 +231,12 @@ export function createApp(db, { now = () => new Date() } = {}) {
       FROM tasks t`;
 
   api.get('/plans/:id/tasks', async (req, res) => {
-    const plan = await getPlan(req.params.id);
+    const plan = await getPlan(req.params.id, req.user.id);
     res.json(await q(`${TASK_SELECT} WHERE t.plan_id = $1 AND t.deleted_at IS NULL ORDER BY t.created_at`, [plan.id]));
   });
 
   api.post('/plans/:id/tasks', async (req, res) => {
-    const plan = await getPlan(req.params.id);
+    const plan = await getPlan(req.params.id, req.user.id);
     const f = taskFields(req.body ?? {});
     const id = randomUUID();
     await q(
@@ -225,7 +247,7 @@ export function createApp(db, { now = () => new Date() } = {}) {
   });
 
   api.patch('/tasks/:id', async (req, res) => {
-    const task = await getTask(req.params.id);
+    const task = await getTask(req.params.id, req.user.id);
     const f = taskFields(req.body ?? {}, true);
     const keys = Object.keys(f);
     if (keys.length) {
@@ -238,7 +260,7 @@ export function createApp(db, { now = () => new Date() } = {}) {
 
   // 완료: 이미 완료면 아무것도 바꾸지 않는다. 동시에 두 번 와도 한 건만 남는다.
   api.post('/tasks/:id/complete', async (req, res) => {
-    const id = uuid(req.params.id);
+    const { id } = await getTask(req.params.id, req.user.id); // 내 할 일이 아니면 여기서 404
     const changed = await db.tx(async (t) => {
       const rows = await t(
         `UPDATE tasks SET status = 'done', completed_at = now(), updated_at = now()
@@ -247,14 +269,13 @@ export function createApp(db, { now = () => new Date() } = {}) {
       await t('INSERT INTO task_completions (id, task_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [randomUUID(), id]);
       return true;
     });
-    if (!changed) await getTask(id); // 없는 할 일이면 404
     const [task] = await q(`${TASK_SELECT} WHERE t.id = $1`, [id]);
     res.json({ ...task, changed });
   });
 
   // 완료 되돌리기: 진행 중으로 바꾸고, 열린 완료 기록에 되돌린 시각을 적는다.
   api.post('/tasks/:id/reopen', async (req, res) => {
-    const id = uuid(req.params.id);
+    const { id } = await getTask(req.params.id, req.user.id);
     const changed = await db.tx(async (t) => {
       const rows = await t(
         `UPDATE tasks SET status = 'in_progress', completed_at = NULL, updated_at = now()
@@ -263,33 +284,32 @@ export function createApp(db, { now = () => new Date() } = {}) {
       await t('UPDATE task_completions SET reopened_at = now() WHERE task_id = $1 AND reopened_at IS NULL', [id]);
       return true;
     });
-    if (!changed) await getTask(id);
     const [task] = await q(`${TASK_SELECT} WHERE t.id = $1`, [id]);
     res.json({ ...task, changed });
   });
 
   // 지우기: 기록은 남기고 지운 시각만 적는다. 목록과 집계에서는 빠진다.
   api.delete('/tasks/:id', async (req, res) => {
-    const task = await getTask(req.params.id);
+    const task = await getTask(req.params.id, req.user.id);
     await q('UPDATE tasks SET deleted_at = now(), updated_at = now() WHERE id = $1', [task.id]);
     res.status(204).end();
   });
 
   // ----- 실행 기록 -----
   api.get('/tasks/:id/logs', async (req, res) => {
-    const task = await getTask(req.params.id);
+    const task = await getTask(req.params.id, req.user.id);
     res.json(await q('SELECT * FROM work_logs WHERE task_id = $1 ORDER BY started_at', [task.id]));
   });
 
   api.get('/plans/:id/logs', async (req, res) => {
-    const plan = await getPlan(req.params.id);
+    const plan = await getPlan(req.params.id, req.user.id);
     res.json(await q(
       `SELECT w.*, t.title AS task_title FROM work_logs w JOIN tasks t ON t.id = w.task_id
         WHERE t.plan_id = $1 AND t.deleted_at IS NULL ORDER BY w.started_at DESC`, [plan.id]));
   });
 
   api.post('/tasks/:id/logs', async (req, res) => {
-    const task = await getTask(req.params.id);
+    const task = await getTask(req.params.id, req.user.id);
     const b = req.body ?? {};
     const started = instant(b.started_at, '시작 시각');
     const ended = instant(b.ended_at, '끝난 시각');
@@ -339,14 +359,14 @@ export function createApp(db, { now = () => new Date() } = {}) {
   }
 
   api.get('/plans/:id/review', async (req, res) => {
-    const plan = await getPlan(req.params.id);
+    const plan = await getPlan(req.params.id, req.user.id);
     const summary = await reviewSummary(plan.id);
     const saved = await q('SELECT * FROM reviews WHERE plan_id = $1 ORDER BY created_at DESC', [plan.id]);
     res.json({ ...summary, saved });
   });
 
   api.post('/plans/:id/reviews', async (req, res) => {
-    const plan = await getPlan(req.params.id);
+    const plan = await getPlan(req.params.id, req.user.id);
     const improvement = text(req.body?.improvement, '고칠 점', { max: 1000 });
     const { ids, ...summary } = await reviewSummary(plan.id);
     const [row] = await q(
@@ -359,32 +379,32 @@ export function createApp(db, { now = () => new Date() } = {}) {
   api.get('/reviews', async (req, res) => {
     res.json(await q(
       `SELECT r.id, r.improvement, r.created_at, p.title AS plan_title
-         FROM reviews r JOIN plans p ON p.id = r.plan_id ORDER BY r.created_at DESC`));
+         FROM reviews r JOIN plans p ON p.id = r.plan_id WHERE p.user_id = $1 ORDER BY r.created_at DESC`, [req.user.id]));
   });
 
   // ----- 내보내기: 전체 자료를 JSON 파일 하나로 -----
   api.get('/export', async (req, res) => {
+    const u = [req.user.id];
+    const mine = 'plan_id IN (SELECT id FROM plans WHERE user_id = $1)';
+    const myTasks = `task_id IN (SELECT id FROM tasks WHERE ${mine})`;
     const data = {
       format: 'pds-export',
       schema: 'contracts/pds-schema-v2.json',
       exported_at: now().toISOString(),
       time_zone: TIME_ZONE,
       units: { estimate_minutes: 'minute', actual_minutes: 'minute' },
-      plans: await q('SELECT * FROM plans ORDER BY created_at'),
-      plan_versions: await q('SELECT * FROM plan_versions ORDER BY plan_id, version'),
-      tasks: await q('SELECT * FROM tasks ORDER BY created_at'),
-      task_completions: await q('SELECT * FROM task_completions ORDER BY completed_at'),
-      work_logs: await q('SELECT * FROM work_logs ORDER BY started_at'),
-      reviews: await q('SELECT * FROM reviews ORDER BY created_at'),
+      user: { id: req.user.id, email: req.user.email },
+      plans: await q('SELECT * FROM plans WHERE user_id = $1 ORDER BY created_at', u),
+      plan_versions: await q(`SELECT * FROM plan_versions WHERE ${mine} ORDER BY plan_id, version`, u),
+      tasks: await q(`SELECT * FROM tasks WHERE ${mine} ORDER BY created_at`, u),
+      task_completions: await q(`SELECT * FROM task_completions WHERE ${myTasks} ORDER BY completed_at`, u),
+      work_logs: await q(`SELECT * FROM work_logs WHERE ${myTasks} ORDER BY started_at`, u),
+      reviews: await q(`SELECT * FROM reviews WHERE ${mine} ORDER BY created_at`, u),
+      diary: await diary.load(req.user.id),
     };
     const stamp = seoulToday(now());
     res.set('Content-Disposition', `attachment; filename="pds-export-${stamp}.json"`);
     res.json(data);
-  });
-
-  api.get('/health', async (req, res) => {
-    await q('SELECT 1');
-    res.json({ ok: true, database: db.kind });
   });
 
   app.use('/api', api);
