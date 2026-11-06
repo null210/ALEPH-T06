@@ -1,10 +1,10 @@
 # 7번 과제 제출문 — 잠긴 다이어리
 
-- 결과물 주소: `https://aleph-t06-omega.vercel.app` — 첫 화면은 로그인 화면입니다. 계정 없이도 거기까지는 열리고, 내 기록은 로그인한 뒤에만 보입니다
+- 결과물 주소: `https://aleph-t06-zeta.vercel.app` — 첫 화면은 로그인 화면입니다. 계정 없이도 거기까지는 열리고, 내 기록은 로그인한 뒤에만 보입니다
 - 소스 주소: `https://github.com/null210/ALEPH-T06` (공개 저장소)
 - 이어 붙인 6번 결과: 같은 저장소의 6번 최종 커밋 `1e7650f`("확인 방법을 실제 자료 기준(막힘 2건)으로 수정"). 7번 커밋은 그 위에 쌓여 있어서 6번 커밋이 조상으로 들어 있습니다
 - 인증 구현 설명서: [docs/AUTH.md](docs/AUTH.md) — ① 무엇으로 ② 왜 ③ 어디를 ④ 확인 기록 ⑤ AI와 나 ⑥ 아직 못 막은 것
-- 확인 기록 전체(요청·응답 63쌍, 비밀값 가림): [docs/evidence-local.md](docs/evidence-local.md)
+- 확인 기록 전체(요청·응답 63쌍, 비밀값 가림): 배포 사이트 [docs/evidence-production.md](docs/evidence-production.md) · 로컬 [docs/evidence-local.md](docs/evidence-local.md)
 - 5일 사용 기록과 3일차 전 규칙 변경: 원본은 앱의 "오늘 기록" 화면(내 계정 안). 옮겨 적은 것은 [docs/USAGE_LOG.md](docs/USAGE_LOG.md)
 
 ## 한눈에

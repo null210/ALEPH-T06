@@ -3,7 +3,7 @@
 계획(Plan)을 세우고, 할 일과 실제로 한 일(Do)을 기록하고, 돌아보기(See)로 다음 계획을 고치는 할 일 관리 웹앱입니다.
 7번 과제에서 가입·로그인을 붙여, **로그인한 본인만 자기 자료를 봅니다.** 모든 자료는 서버의 PostgreSQL 데이터베이스에 저장됩니다.
 
-- 결과물: `https://aleph-t06-omega.vercel.app` — 첫 화면은 로그인 화면
+- 결과물: `https://aleph-t06-zeta.vercel.app` — 첫 화면은 로그인 화면
 - 소스: `https://github.com/null210/ALEPH-T06`
 - 7번 제출문: [SUBMISSION.md](SUBMISSION.md) · 인증 구현 설명서: [docs/AUTH.md](docs/AUTH.md) · 5일 기록: [docs/USAGE_LOG.md](docs/USAGE_LOG.md)
 
@@ -22,11 +22,11 @@
 | | GitHub | Google |
 |---|---|---|
 | 등록하는 곳 | github.com → Settings → Developer settings → **OAuth Apps** → New OAuth App | console.cloud.google.com → APIs & Services → **Credentials** → Create credentials → OAuth client ID (Web application). 처음이면 OAuth consent screen 부터 만들고, 앱을 "In production"으로 게시하거나 테스트 사용자에 내 계정을 넣습니다 |
-| Homepage / 승인된 JavaScript 원본 | `https://aleph-t06-omega.vercel.app` | `https://aleph-t06-omega.vercel.app` |
-| 콜백 주소 (Authorization callback URL / 승인된 리디렉션 URI) | `https://aleph-t06-omega.vercel.app/api/auth/oauth/github/callback` | `https://aleph-t06-omega.vercel.app/api/auth/oauth/google/callback` |
+| Homepage / 승인된 JavaScript 원본 | `https://aleph-t06-zeta.vercel.app` | `https://aleph-t06-zeta.vercel.app` |
+| 콜백 주소 (Authorization callback URL / 승인된 리디렉션 URI) | `https://aleph-t06-zeta.vercel.app/api/auth/oauth/github/callback` | `https://aleph-t06-zeta.vercel.app/api/auth/oauth/google/callback` |
 | Vercel 환경 변수 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 
-- `PUBLIC_URL=https://aleph-t06-omega.vercel.app`도 넣어 두면, 미리보기 주소로 열었을 때도 콜백 주소가 등록한 값과 같아집니다.
+- `PUBLIC_URL=https://aleph-t06-zeta.vercel.app`도 넣어 두면, 미리보기 주소로 열었을 때도 콜백 주소가 등록한 값과 같아집니다.
 - 로컬에서 시험하려면 콜백 주소를 `http://localhost:3000/api/auth/oauth/github/callback`으로 한 앱을 따로 만들어 `.env` 없이 환경 변수로 넣고 `npm start` 합니다.
 
 ## 짧은 확인 방법 (6번 기준 — 7번은 [SUBMISSION.md](SUBMISSION.md))
@@ -34,7 +34,7 @@
 7번부터는 아래 단계 전에 먼저 가입·로그인합니다.
 
 **① 어디로 가나요**
-새 시크릿 창에서 https://aleph-t06-omega.vercel.app 을 엽니다. 로그인·가입 화면 없이 바로 "내 계획" 목록이 보입니다.
+새 시크릿 창에서 https://aleph-t06-zeta.vercel.app 을 엽니다. 로그인·가입 화면 없이 바로 "내 계획" 목록이 보입니다.
 
 **② 세 단계 안에 무엇을 하나요**
 1. 목록에서 "T06 PDS 플래너 만들고 배포하기" 계획을 누릅니다.
@@ -48,7 +48,7 @@
 
 **④ 안 될 때는 무엇이 보이나요**
 - 데이터베이스에 연결하지 못하면 공개 안내 아래에 "화면을 열 수 없습니다"와 "서버에서 문제가 생겼습니다. 잠시 뒤 다시 해 주세요."가 보입니다.
-- 이때 https://aleph-t06-omega.vercel.app/api/health 를 열면 `{"ok":true,"database":"postgres"}` 대신 `{"ok":false,"code":"…","error":"…"}`로 원인과 고칠 방법이 보입니다. 접속 주소나 비밀번호는 담기지 않습니다.
+- 이때 https://aleph-t06-zeta.vercel.app/api/health 를 열면 `{"ok":true,"database":"postgres"}` 대신 `{"ok":false,"code":"…","error":"…"}`로 원인과 고칠 방법이 보입니다. 접속 주소나 비밀번호는 담기지 않습니다.
 - 자료가 지워졌으면 목록에 "아직 계획이 없습니다"가 보입니다.
 - Supabase 무료 프로젝트는 오래 안 쓰면 일시 정지(Paused)됩니다. 그때는 Supabase 대시보드에서 Restore 하면 됩니다.
 
@@ -95,15 +95,15 @@ npm test           # 체크리스트 자동 테스트
    - 연결하면 `POSTGRES_URL`을 비롯한 환경 변수가 프로젝트에 자동으로 들어갑니다. 코드는 `POSTGRES_URL`을 씁니다.
    - 지역은 서울(Northeast Asia, Seoul)을 고르면 빠릅니다.
 4. **Redeploy**: Deployments → 최신 배포의 ⋯ → Redeploy. 환경 변수는 새 배포에만 적용됩니다.
-5. `https://aleph-t06-omega.vercel.app/api/health`가 `{"ok":true,"database":"postgres"}`이면 끝입니다. 표는 첫 요청 때 자동으로 만들어집니다.
-6. **새 시크릿 창**에서 https://aleph-t06-omega.vercel.app 이 열어 로그인 화면이 먼저 나오는지 확인합니다.
+5. `https://aleph-t06-zeta.vercel.app/api/health`가 `{"ok":true,"database":"postgres"}`이면 끝입니다. 표는 첫 요청 때 자동으로 만들어집니다.
+6. **새 시크릿 창**에서 https://aleph-t06-zeta.vercel.app 이 열어 로그인 화면이 먼저 나오는지 확인합니다.
 
 이미 만든 Supabase 프로젝트를 쓰고 싶으면 3번 대신 Supabase 대시보드의 Connect → Transaction pooler 주소(포트 6543)를 복사해, Vercel의 Environment Variables에 `DATABASE_URL`이라는 이름으로 넣고 Redeploy 합니다.
 
 (7번) 6번 때 넣은 자료를 내 계정으로 가져오려면 Environment Variables에 `OWNER_EMAIL`(내 이메일)을 넣고 Redeploy 한 뒤, **곧바로** 그 이메일로 가입합니다. 넣지 않으면 옛 자료는 아무에게도 보이지 않습니다.
 
 주의할 점
-- 제출 주소는 프로덕션 주소(`aleph-t06-omega.vercel.app`)입니다. 배포마다 생기는 긴 미리보기 주소는 Vercel 로그인을 요구할 수 있습니다 (C01).
+- 제출 주소는 프로덕션 주소(`aleph-t06-zeta.vercel.app`)입니다. 배포마다 생기는 긴 미리보기 주소는 Vercel 로그인을 요구할 수 있습니다 (C01).
 - 접속 주소와 Supabase 키는 Vercel 환경 변수에만 있습니다. 화면 코드(`public/`)는 Supabase를 직접 부르지 않아 키가 브라우저로 가지 않습니다. `NEXT_PUBLIC_` 변수가 생겨도 이 프로젝트는 빌드에 넣지 않습니다.
 - 모든 표에 행 수준 보안(RLS)을 켜 두어, Supabase의 자동 REST API로는 표를 읽거나 쓸 수 없습니다. 이 서버는 표 주인이라 영향이 없습니다.
 - 접속 주소 없이 Vercel에서 켜지면 서버가 일부러 DB를 쓰지 않고 `/api/health`에 이유를 보여 줍니다. 자료가 사라지는 임시 저장을 막기 위해서입니다.
@@ -117,7 +117,7 @@ npm test           # 체크리스트 자동 테스트
 - `seed/my-data.example.json`을 `seed/my-data.json`으로 복사해 내용을 바꾼 뒤 한 번에 넣을 수도 있습니다.
 
 ```bash
-PDS_EMAIL=내@메일 PDS_PASSWORD='내 비밀번호' node scripts/seed.js seed/my-data.json https://aleph-t06-omega.vercel.app
+PDS_EMAIL=내@메일 PDS_PASSWORD='내 비밀번호' node scripts/seed.js seed/my-data.json https://aleph-t06-zeta.vercel.app
 ```
 
 7번부터는 로그인한 계정으로 넣습니다. 비밀번호는 환경 변수로만 받고 화면에 찍지 않습니다. 셸 기록에 남기 싫으면 `read -s PDS_PASSWORD; export PDS_PASSWORD`로 넣으세요.
