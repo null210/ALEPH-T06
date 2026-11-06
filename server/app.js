@@ -83,7 +83,7 @@ function uuid(v) {
 }
 
 // ---------- 앱 ----------
-export function createApp(db, { now = () => new Date() } = {}) {
+export function createApp(db, { now = () => new Date(), oauthFetch } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('json spaces', 0);
@@ -114,7 +114,7 @@ export function createApp(db, { now = () => new Date() } = {}) {
     await q('SELECT 1');
     res.json({ ok: true, database: db.kind });
   });
-  const requireUser = authRoutes(db, api);
+  const requireUser = authRoutes(db, api, { oauthFetch });
   api.use(requireUser);
   const diary = diaryRoutes(api, db, { now, seoulToday });
 

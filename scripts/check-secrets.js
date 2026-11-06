@@ -12,6 +12,9 @@ const PATTERNS = [
   ['비밀키 블록', /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
   // 7번: 로그인 세션 쿠키 원문 (확인 기록에는 앞 5글자 + "…생략"만 남겨야 한다)
   ['세션 쿠키 원문', /pds_sid=[A-Za-z0-9_-]{20,}/],
+  // 7번: Google OAuth client secret (GitHub secret 은 40자리 16진수라 커밋 해시와 구별되지 않아 이름으로 찾는다)
+  ['Google OAuth secret', /GOCSPX-[A-Za-z0-9_-]{20,}/],
+  ['OAuth client secret 값', /(GITHUB|GOOGLE)_CLIENT_SECRETs*=s*[A-Za-z0-9_-]{16,}/],
 ];
 
 const findings = [];

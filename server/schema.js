@@ -173,6 +173,19 @@ ALTER TABLE task_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE work_logs        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews          ENABLE ROW LEVEL SECURITY;
 
+-- GitHub·Google 로그인 연결. 제공자 쪽 사용자 번호 하나는 우리 계정 하나에만 붙는다.
+-- GitHub·Google 로만 가입한 계정은 비밀번호가 없다(password_hash NULL). 비밀번호 로그인은 늘 실패한다.
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+CREATE TABLE IF NOT EXISTS oauth_accounts (
+  provider           text NOT NULL CHECK (provider IN ('github', 'google')),
+  provider_user_id   text NOT NULL,
+  user_id            uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  email              text NOT NULL,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (provider, provider_user_id)
+);
+CREATE INDEX IF NOT EXISTS oauth_accounts_user_idx ON oauth_accounts (user_id);
+
 -- 7번에서 만든 표도 같은 이유로 RLS 를 켠다. 특히 users(비밀번호 저장값)와 sessions 가 REST API 로 새면 안 된다.
 ALTER TABLE users            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions         ENABLE ROW LEVEL SECURITY;
@@ -180,4 +193,5 @@ ALTER TABLE login_failures   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE experiments      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_entries    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rule_changes     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE oauth_accounts   ENABLE ROW LEVEL SECURITY;
 `;

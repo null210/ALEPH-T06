@@ -7,6 +7,7 @@
 // - 남의 자료는 "있지만 못 본다(403)"가 아니라 "없다(404)"로 답해, 남의 ID 가 있는지도 알려 주지 않는다.
 import { randomBytes, scrypt as scryptCb, timingSafeEqual, createHash, randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
+import { oauthRoutes } from './oauth.js';
 
 const scrypt = promisify(scryptCb);
 
@@ -43,7 +44,7 @@ async function burnTime(password) {
 
 const sha256 = (s) => createHash('sha256').update(s).digest('hex');
 
-function parseCookies(header = '') {
+export function parseCookies(header = '') {
   const out = {};
   for (const part of header.split(';')) {
     const i = part.indexOf('=');
@@ -53,7 +54,7 @@ function parseCookies(header = '') {
   return out;
 }
 
-function cookieHeader(req, value, maxAgeSec) {
+export function cookieHeader(req, value, maxAgeSec) {
   const secure = req.secure ? '; Secure' : '';
   return `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSec}${secure}`;
 }
@@ -72,8 +73,14 @@ function password(v) {
 }
 
 // ---------- 라우터와 검사기 ----------
-export function authRoutes(db, router) {
+export function authRoutes(db, router, { oauthFetch } = {}) {
   const q = db.query;
+
+  // 6번 과제 때(로그인 없던 때) 넣어 둔 자료는 주인이 없다. OWNER_EMAIL 로 처음 가입한 사람이 한 번만 가져간다.
+  async function claimOrphans(userId, userEmail) {
+    const owner = process.env.OWNER_EMAIL?.trim().toLowerCase();
+    if (owner && owner === userEmail) await q('UPDATE plans SET user_id = $1 WHERE user_id IS NULL', [userId]);
+  }
 
   async function startSession(req, res, user) {
     const token = randomBytes(32).toString('base64url');
@@ -93,9 +100,7 @@ export function authRoutes(db, router) {
       `INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)
        ON CONFLICT (email) DO NOTHING RETURNING id, email, created_at`, [id, e, hash]);
     if (!rows[0]) throw new HttpError(409, '이미 가입된 이메일입니다. 로그인해 주세요.');
-    // 6번 과제 때(로그인 없던 때) 넣어 둔 자료는 주인이 없다. OWNER_EMAIL 로 가입한 사람이 한 번만 가져간다.
-    const owner = process.env.OWNER_EMAIL?.trim().toLowerCase();
-    if (owner && owner === e) await q('UPDATE plans SET user_id = $1 WHERE user_id IS NULL', [id]);
+    await claimOrphans(id, e);
     await startSession(req, res, rows[0]);
     res.status(201).json({ user: { id: rows[0].id, email: rows[0].email } });
   });
@@ -109,7 +114,8 @@ export function authRoutes(db, router) {
     if (n >= MAX_FAILS) throw new HttpError(429, `로그인을 너무 많이 틀렸습니다. ${FAIL_WINDOW_MIN}분 뒤에 다시 해 주세요.`);
 
     const [user] = await q('SELECT id, email, password_hash FROM users WHERE email = $1', [e]);
-    const good = user ? await verifyPassword(pw, user.password_hash) : (await burnTime(pw), false);
+    // 없는 이메일이거나 GitHub·Google 로만 가입해 비밀번호가 없는 계정도 같은 시간을 쓰고 같은 문장으로 거절한다
+    const good = user?.password_hash ? await verifyPassword(pw, user.password_hash) : (await burnTime(pw), false);
     if (!good) {
       await q('INSERT INTO login_failures (id, email) VALUES ($1, $2)', [randomUUID(), e]);
       // 이메일이 없는지, 비밀번호가 틀렸는지 구별해 알려 주지 않는다
@@ -142,18 +148,28 @@ export function authRoutes(db, router) {
     next();
   }
 
-  router.get('/auth/me', requireUser, (req, res) => res.json({ user: req.user }));
+  // 화면이 쓰는 정보만. 비밀번호 저장값은 내보내지 않고 "있는지"만 알려 준다
+  router.get('/auth/me', requireUser, async (req, res) => {
+    const [u] = await q('SELECT password_hash IS NOT NULL AS has_password FROM users WHERE id = $1', [req.user.id]);
+    const links = await q('SELECT provider FROM oauth_accounts WHERE user_id = $1 ORDER BY provider', [req.user.id]);
+    res.json({ user: { ...req.user, has_password: u.has_password, providers: links.map((l) => l.provider) } });
+  });
 
-  async function checkCurrentPassword(userId, pw) {
+  async function hasPassword(userId) {
     const [u] = await q('SELECT password_hash FROM users WHERE id = $1', [userId]);
-    if (!u || typeof pw !== 'string' || !(await verifyPassword(pw, u.password_hash))) {
+    return u?.password_hash ?? null;
+  }
+  async function checkCurrentPassword(userId, pw) {
+    const stored = await hasPassword(userId);
+    if (!stored || typeof pw !== 'string' || !(await verifyPassword(pw, stored))) {
       throw new HttpError(400, '지금 비밀번호가 맞지 않습니다.');
     }
   }
 
   // 비밀번호 바꾸기: 이 사람의 세션을 모두 지운다(다른 기기·예전 쿠키 모두 끊김). 지금 기기에는 새 세션을 준다.
+  // GitHub·Google 로만 가입해 비밀번호가 없는 계정은 지금 비밀번호 없이 처음 비밀번호를 정할 수 있다.
   router.post('/auth/password', requireUser, async (req, res) => {
-    await checkCurrentPassword(req.user.id, req.body?.current_password);
+    if (await hasPassword(req.user.id)) await checkCurrentPassword(req.user.id, req.body?.current_password);
     const next = password(req.body?.new_password);
     await q('UPDATE users SET password_hash = $2 WHERE id = $1', [req.user.id, await hashPassword(next)]);
     await q('DELETE FROM sessions WHERE user_id = $1', [req.user.id]);
@@ -162,12 +178,18 @@ export function authRoutes(db, router) {
   });
 
   // 계정 지우기: users 행을 지우면 ON DELETE CASCADE 로 계획·할 일·실행 기록·돌아보기·5일 기록·세션이 함께 지워진다.
+  // 비밀번호가 없는 계정(GitHub·Google 전용)은 내 이메일을 그대로 적어 확인한다.
   router.delete('/auth/account', requireUser, async (req, res) => {
-    await checkCurrentPassword(req.user.id, req.body?.password);
+    if (await hasPassword(req.user.id)) await checkCurrentPassword(req.user.id, req.body?.password);
+    else if (String(req.body?.confirm_email ?? '').trim().toLowerCase() !== req.user.email) {
+      throw new HttpError(400, '확인을 위해 내 이메일을 그대로 적어 주세요.');
+    }
     await q('DELETE FROM users WHERE id = $1', [req.user.id]);
     res.set('Set-Cookie', cookieHeader(req, '', 0));
     res.status(204).end();
   });
+
+  oauthRoutes(router, { q, startSession, claimOrphans, fetchImpl: oauthFetch ?? fetch });
 
   return requireUser;
 }

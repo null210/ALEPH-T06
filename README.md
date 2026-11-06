@@ -15,6 +15,20 @@
 - 계정 화면(`#/account`): 비밀번호 바꾸기(모든 이전 세션 끊김), 계정 지우기(내 자료 모두 함께 삭제)
 - 확인 기록 만들기: `node scripts/verify-auth.js [배포 주소]` (시험 계정 두 개를 새로 만들고, 비밀값은 가려서 출력)
 
+## GitHub·Google 로그인 켜기 (선택)
+
+환경 변수가 없으면 버튼이 보이지 않고 이메일 로그인만 됩니다. 켜려면 아래처럼 앱을 등록하고 **Vercel 환경 변수에만** 값을 넣은 뒤 Redeploy 합니다. 값은 파일이나 커밋에 적지 않습니다.
+
+| | GitHub | Google |
+|---|---|---|
+| 등록하는 곳 | github.com → Settings → Developer settings → **OAuth Apps** → New OAuth App | console.cloud.google.com → APIs & Services → **Credentials** → Create credentials → OAuth client ID (Web application). 처음이면 OAuth consent screen 부터 만들고, 앱을 "In production"으로 게시하거나 테스트 사용자에 내 계정을 넣습니다 |
+| Homepage / 승인된 JavaScript 원본 | `https://aleph-t06-omega.vercel.app` | `https://aleph-t06-omega.vercel.app` |
+| 콜백 주소 (Authorization callback URL / 승인된 리디렉션 URI) | `https://aleph-t06-omega.vercel.app/api/auth/oauth/github/callback` | `https://aleph-t06-omega.vercel.app/api/auth/oauth/google/callback` |
+| Vercel 환경 변수 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+
+- `PUBLIC_URL=https://aleph-t06-omega.vercel.app`도 넣어 두면, 미리보기 주소로 열었을 때도 콜백 주소가 등록한 값과 같아집니다.
+- 로컬에서 시험하려면 콜백 주소를 `http://localhost:3000/api/auth/oauth/github/callback`으로 한 앱을 따로 만들어 `.env` 없이 환경 변수로 넣고 `npm start` 합니다.
+
 ## 짧은 확인 방법 (6번 기준 — 7번은 [SUBMISSION.md](SUBMISSION.md))
 
 7번부터는 아래 단계 전에 먼저 가입·로그인합니다.

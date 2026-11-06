@@ -100,7 +100,9 @@ test('저장된 비밀번호에 입력한 글자가 보이지 않는다 (세션 
   assert.ok(sessions.every((s) => s.token_hash !== token && /^[0-9a-f]{64}$/.test(s.token_hash)));
   // 응답으로도 비밀번호 저장값이 나가지 않는다
   const me = await req('GET', '/auth/me', { cookie: A.cookie });
-  assert.deepEqual(Object.keys(me.data.user).sort(), ['email', 'id']);
+  assert.deepEqual(Object.keys(me.data.user).sort(), ['email', 'has_password', 'id', 'providers']);
+  assert.equal(me.data.user.has_password, true, '저장값 대신 "있는지"만 알려 준다');
+  assert.doesNotMatch(JSON.stringify(me.data), /scrypt|password_hash/);
   const exp = await req('GET', '/export', { cookie: A.cookie });
   assert.doesNotMatch(JSON.stringify(exp.data), /scrypt|password/);
 });

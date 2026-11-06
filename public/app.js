@@ -133,10 +133,10 @@ async function route() {
       try { setUser((await api('GET', '/auth/me')).user); } catch { setUser(null); }
     }
     // 로그인 전에는 어떤 주소(#/plan/... 포함)로 와도 로그인 화면만 보인다
-    if (!me) return renderAuth(parts[0] === 'signup' ? 'signup' : 'login');
+    if (!me) return renderAuth(parts[0] === 'signup' ? 'signup' : 'login', params);
     if (parts[0] === 'plan' && parts[1]) await renderPlan(parts[1], parts[2] ?? 'tasks', params);
     else if (parts[0] === 'diary') await renderDiary();
-    else if (parts[0] === 'account') renderAccount();
+    else if (parts[0] === 'account') await renderAccount();
     else await renderHome(params);
   } catch (e) {
     if (e instanceof NeedLogin) return renderAuth('login');
@@ -148,10 +148,29 @@ window.addEventListener('hashchange', route);
 route();
 
 // ---------- 로그인·가입 화면 ----------
-function renderAuth(mode) {
+// GitHub·Google 에서 돌아올 때 실패하면 서버가 #/login?error=코드 로 보낸다
+const OAUTH_ERRORS = {
+  state: '로그인 요청이 맞지 않아 멈췄습니다(시간이 지났거나 다른 창에서 시작함). 버튼을 다시 눌러 주세요.',
+  email: '그 계정에서 인증된 이메일을 받지 못했습니다. GitHub·Google 계정의 이메일 인증을 먼저 해 주세요.',
+  denied: 'GitHub·Google 화면에서 로그인을 취소했습니다.',
+  token: 'GitHub·Google 에서 로그인 확인을 받지 못했습니다. 잠시 뒤 다시 해 주세요.',
+  provider: 'GitHub·Google 에 연결하지 못했습니다. 잠시 뒤 다시 해 주세요.',
+};
+
+function renderAuth(mode, params = new URLSearchParams()) {
   document.title = mode === 'signup' ? '가입 · PDS 플래너' : '로그인 · PDS 플래너';
   const signup = mode === 'signup';
   const err = errorLine();
+  const oauthErr = OAUTH_ERRORS[params.get('error')];
+  if (oauthErr) { err.textContent = oauthErr; err.hidden = false; }
+  // 켜진 제공자만 버튼을 그린다 (서버 환경 변수에 client ID·secret 이 있는 것)
+  const social = h('div', { class: 'social' });
+  api('GET', '/auth/providers').then(({ providers }) => {
+    if (!providers.length) return;
+    social.replaceChildren(
+      ...providers.map((p) => h('a', { class: 'btn ghost social-btn', href: `/api/auth/oauth/${p.id}/start`, id: `oauth-${p.id}` }, `${p.label}로 ${signup ? '가입' : '로그인'}`)),
+      h('p', { class: 'or' }, '또는 이메일로'));
+  }).catch(() => {});
   const form = h('form', { class: 'form-grid', novalidate: true },
     field('이메일', h('input', { type: 'email', name: 'email', id: 'auth-email', required: true, autocomplete: 'username', maxlength: 254 }), 'wide'),
     field(signup ? '비밀번호 (8자 이상)' : '비밀번호',
@@ -182,6 +201,7 @@ function renderAuth(mode) {
     h('nav', { class: 'auth-switch', 'aria-label': '로그인 또는 가입' },
       h('a', { href: '#/login', 'aria-current': signup ? null : 'page' }, '로그인'), ' · ',
       h('a', { href: '#/signup', 'aria-current': signup ? 'page' : null }, '처음이면 가입')),
+    social,
     form));
   form.querySelector('#auth-email').focus();
 }
@@ -765,11 +785,15 @@ async function renderDiary() {
 }
 
 // ---------- 계정: 비밀번호 바꾸기 · 계정 지우기 ----------
-function renderAccount() {
+async function renderAccount() {
   document.title = '계정 · PDS 플래너';
+  const info = (await api('GET', '/auth/me')).user;
+  const LABEL = { github: 'GitHub', google: 'Google' };
   const pwErr = errorLine();
   const pwForm = h('form', { class: 'form-grid', novalidate: true },
-    field('지금 비밀번호', h('input', { type: 'password', name: 'current_password', id: 'pw-current', required: true, autocomplete: 'current-password' }), 'wide'),
+    info.has_password
+      ? field('지금 비밀번호', h('input', { type: 'password', name: 'current_password', id: 'pw-current', required: true, autocomplete: 'current-password' }), 'wide')
+      : h('p', { class: 'hint wide' }, 'GitHub·Google 로만 가입해서 아직 비밀번호가 없습니다. 정해 두면 이메일로도 로그인할 수 있습니다.'),
     field('새 비밀번호 (8자 이상)', h('input', { type: 'password', name: 'new_password', id: 'pw-new', required: true, minlength: 8, autocomplete: 'new-password' }), 'wide'),
     h('div', { class: 'form-actions wide' }, h('button', { class: 'btn', type: 'submit' }, '비밀번호 바꾸기'),
       h('span', { class: 'hint' }, '바꾸면 다른 기기와 예전 로그인은 모두 끊기고, 이 기기만 새로 로그인된 상태로 남습니다.')), pwErr);
@@ -778,16 +802,18 @@ function renderAccount() {
     busy(pwForm.querySelector('button'), async () => {
       const fd = new FormData(pwForm);
       try {
-        await api('POST', '/auth/password', { current_password: String(fd.get('current_password')), new_password: String(fd.get('new_password')) });
-        pwForm.reset();
-        toast('비밀번호를 바꿨습니다. 다른 기기의 로그인은 끊겼습니다.');
+        await api('POST', '/auth/password', { current_password: String(fd.get('current_password') ?? ''), new_password: String(fd.get('new_password')) });
+        toast(info.has_password ? '비밀번호를 바꿨습니다. 다른 기기의 로그인은 끊겼습니다.' : '비밀번호를 정했습니다. 다른 기기의 로그인은 끊겼습니다.');
+        await renderAccount();
       } catch (e) { showError(pwErr, e); }
     });
   });
 
   const delErr = errorLine();
   const delForm = h('form', { class: 'form-grid', novalidate: true },
-    field('비밀번호를 다시 적어 확인', h('input', { type: 'password', name: 'password', id: 'del-password', required: true, autocomplete: 'current-password' }), 'wide'),
+    info.has_password
+      ? field('비밀번호를 다시 적어 확인', h('input', { type: 'password', name: 'password', id: 'del-password', required: true, autocomplete: 'current-password' }), 'wide')
+      : field(`확인을 위해 내 이메일(${info.email})을 그대로 적기`, h('input', { type: 'email', name: 'confirm_email', id: 'del-email', required: true, autocomplete: 'off' }), 'wide'),
     h('label', { class: 'check wide' }, h('input', { type: 'checkbox', name: 'sure', id: 'del-sure' }), '모든 자료가 지워지고 되돌릴 수 없다는 것을 알았습니다'),
     h('div', { class: 'form-actions wide' }, h('button', { class: 'btn danger', type: 'submit' }, '계정과 내 자료 모두 지우기')), delErr);
   delForm.addEventListener('submit', (ev) => {
@@ -796,7 +822,7 @@ function renderAccount() {
       const fd = new FormData(delForm);
       try {
         if (!fd.get('sure')) throw new Error('지워진다는 것을 확인하는 칸에 표시해 주세요.');
-        await api('DELETE', '/auth/account', { password: String(fd.get('password')) });
+        await api('DELETE', '/auth/account', info.has_password ? { password: String(fd.get('password')) } : { confirm_email: String(fd.get('confirm_email')) });
         setUser(null);
         toast('계정과 모든 자료를 지웠습니다.');
         location.hash = '#/';
@@ -806,9 +832,10 @@ function renderAccount() {
   });
 
   app.replaceChildren(
-    h('section', { class: 'panel' }, h('h1', {}, '계정'), h('p', {}, `로그인한 이메일: ${me.email}`),
+    h('section', { class: 'panel' }, h('h1', {}, '계정'), h('p', {}, `로그인한 이메일: ${info.email}`),
+      h('p', { class: 'hint' }, `로그인 방법: ${[info.has_password ? '이메일·비밀번호' : null, ...info.providers.map((p) => LABEL[p] ?? p)].filter(Boolean).join(', ')}`),
       h('p', {}, h('a', { class: 'btn ghost small', href: '/api/export', download: true }, '내 자료 전체를 파일 하나로 내보내기'))),
-    h('section', { class: 'panel' }, h('h2', {}, '비밀번호 바꾸기'), pwForm),
+    h('section', { class: 'panel' }, h('h2', {}, info.has_password ? '비밀번호 바꾸기' : '비밀번호 정하기'), pwForm),
     h('section', { class: 'panel danger-zone' }, h('h2', {}, '계정 지우기'),
       h('p', { class: 'warn', id: 'delete-notice' }, '계정을 지우면 계획·할 일·실행 기록·돌아보기·5일 기록이 모두 함께 지워지고 되돌릴 수 없습니다. 먼저 위에서 내 자료를 내보내 두세요.'),
       delForm));

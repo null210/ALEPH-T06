@@ -1,8 +1,8 @@
 # 인증 확인 기록 (로컬 서버, 빈 메모리 DB)
 
-- 실행 시각: 2026-11-06T01:50:03.749Z (UTC)
+- 실행 시각: 2026-11-06T02:15:25.246Z (UTC)
 - 대상: http://localhost:(임시 포트)
-- 시험 계정: A = verify-a-155d93@example.com, B = verify-b-155d93@example.com. 이번 실행에서 새로 만들었고, 마지막(ㅈ)에 둘 다 지웠습니다.
+- 시험 계정: A = verify-a-e3c981@example.com, B = verify-b-e3c981@example.com. 이번 실행에서 새로 만들었고, 마지막(ㅈ)에 둘 다 지웠습니다.
 - A와 B는 일부러 **같은 비밀번호**로 만들었습니다(ㅇ에서 저장값이 서로 다른지 봅니다).
 - 가린 값: 비밀번호와 세션 쿠키는 앞 5글자만 남기고 "…생략"으로 가렸습니다. 비밀번호 원문은 이 문서 어디에도 없습니다.
 
@@ -14,13 +14,13 @@
 POST /api/auth/signup
 Cookie: (보내지 않음)
 
-{"email":"verify-a-155d93@example.com","password":"Pw-Sa…생략"}
+{"email":"verify-a-e3c981@example.com","password":"Pw-FH…생략"}
 ```
 ```http
 HTTP 201
-Set-Cookie: pds_sid=hNkG5…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800
+Set-Cookie: pds_sid=pwsR-…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800
 
-{"user":{"id":"83e9bf50-625e-4cfc-bb17-e0707ec464e8","email":"verify-a-155d93@example.com"}}
+{"user":{"id":"3afc1559-a4e4-484a-b4f8-d7d03cd34b1d","email":"verify-a-e3c981@example.com"}}
 ```
 
 #### 2. B 가입 (A와 같은 비밀번호) — ✅ 예상대로
@@ -29,13 +29,13 @@ Set-Cookie: pds_sid=hNkG5…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=6048
 POST /api/auth/signup
 Cookie: (보내지 않음)
 
-{"email":"verify-b-155d93@example.com","password":"Pw-Sa…생략"}
+{"email":"verify-b-e3c981@example.com","password":"Pw-FH…생략"}
 ```
 ```http
 HTTP 201
-Set-Cookie: pds_sid=J0btl…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800
+Set-Cookie: pds_sid=Rf3bq…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800
 
-{"user":{"id":"76133341-90cc-4ed1-981f-6e700bc7ffd4","email":"verify-b-155d93@example.com"}}
+{"user":{"id":"f26ad1f2-4299-4826-80cd-fd802f6de009","email":"verify-b-e3c981@example.com"}}
 ```
 
 #### 3. 같은 이메일로 다시 가입 → 거절 — ✅ 예상대로
@@ -44,7 +44,7 @@ Set-Cookie: pds_sid=J0btl…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=6048
 POST /api/auth/signup
 Cookie: (보내지 않음)
 
-{"email":"verify-a-155d93@example.com","password":"Pw-Sa…생략"}
+{"email":"verify-a-e3c981@example.com","password":"Pw-FH…생략"}
 ```
 ```http
 HTTP 409
@@ -58,7 +58,7 @@ HTTP 409
 POST /api/auth/login
 Cookie: (보내지 않음)
 
-{"email":"verify-a-155d93@example.com","password":"wrong…생략"}
+{"email":"verify-a-e3c981@example.com","password":"wrong…생략"}
 ```
 ```http
 HTTP 401
@@ -72,7 +72,7 @@ HTTP 401
 POST /api/auth/login
 Cookie: (보내지 않음)
 
-{"email":"nobody-155d93@example.com","password":"wrong…생략"}
+{"email":"nobody-e3c981@example.com","password":"wrong…생략"}
 ```
 ```http
 HTTP 401
@@ -86,13 +86,13 @@ HTTP 401
 POST /api/auth/login
 Cookie: (보내지 않음)
 
-{"email":"verify-a-155d93@example.com","password":"Pw-Sa…생략"}
+{"email":"verify-a-e3c981@example.com","password":"Pw-FH…생략"}
 ```
 ```http
 HTTP 200
-Set-Cookie: pds_sid=cxm3x…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800
+Set-Cookie: pds_sid=2kS4v…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800
 
-{"user":{"id":"83e9bf50-625e-4cfc-bb17-e0707ec464e8","email":"verify-a-155d93@example.com"}}
+{"user":{"id":"3afc1559-a4e4-484a-b4f8-d7d03cd34b1d","email":"verify-a-e3c981@example.com"}}
 ```
 
 ### ㄴ. [확인 1] 로그인 없이 자료 요청 — 성공(로그인함)과 거절(로그인 안 함)
@@ -101,7 +101,7 @@ Set-Cookie: pds_sid=cxm3x…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=6048
 
 ```http
 GET /api/plans
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 200
@@ -166,91 +166,91 @@ Set-Cookie: pds_sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0
 
 ```http
 POST /api/plans
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 
 {"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"A의 비밀 계획"}
 ```
 ```http
 HTTP 201
 
-{"id":"248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e","title":"A의 비밀 계획","user_id":"83e9bf50-625e-4cfc-bb17-e0707ec464e8","version":1}
+{"id":"8d079d1c-5e04-4614-b801-e6000f27c27e","title":"A의 비밀 계획","user_id":"3afc1559-a4e4-484a-b4f8-d7d03cd34b1d","version":1}
 ```
 
 #### 13. A가 할 일 만들기 — ✅ 예상대로
 
 ```http
-POST /api/plans/248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e/tasks
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+POST /api/plans/8d079d1c-5e04-4614-b801-e6000f27c27e/tasks
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 
 {"title":"A의 할 일","due_date":"2026-11-07","priority":2,"estimate_minutes":30}
 ```
 ```http
 HTTP 201
 
-{"id":"a3918d96-de5a-45f2-b11d-b68da8122d43","plan_id":"248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e","title":"A의 할 일","status":"in_progress","due_date":"2026-11-07","priority":2,"tags":[],"estimate_minutes":30,"completed_at":null,"deleted_at":null,"created_at":"2026-11-06T01:50:04.418Z","updated_at":"2026-11-06T01:50:04.418Z","actual_minutes":0,"log_count":0,"is_blocked":false}
+{"id":"a74ecb28-e94e-4913-a17e-9a637baada13","plan_id":"8d079d1c-5e04-4614-b801-e6000f27c27e","title":"A의 할 일","status":"in_progress","due_date":"2026-11-07","priority":2,"tags":[],"estimate_minutes":30,"completed_at":null,"deleted_at":null,"created_at":"2026-11-06T02:15:25.967Z","updated_at":"2026-11-06T02:15:25.967Z","actual_minutes":0,"log_count":0,"is_blocked":false}
 ```
 
 #### 14. A가 돌아보기 저장 — ✅ 예상대로
 
 ```http
-POST /api/plans/248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e/reviews
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+POST /api/plans/8d079d1c-5e04-4614-b801-e6000f27c27e/reviews
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 
 {"improvement":"A의 고칠 점"}
 ```
 ```http
 HTTP 201
 
-{"id":"d6b4a8c2-0231-431a-86dc-a06cdf4631fc","plan_id":"248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e","improvement":"A의 고칠 점","summary":{"today":"2026-11-06","blocked":0,"overdue":0,"planned":1,"completed":0,"time_zone":"Asia/Seoul","diff_minutes":-30,"actual_minutes":0,"estimate_minutes":30},"created_at":"2026-11-06T01:50:04.442Z"}
+{"id":"25e7dabc-43ef-4001-85ce-b1d599d4960c","plan_id":"8d079d1c-5e04-4614-b801-e6000f27c27e","improvement":"A의 고칠 점","summary":{"today":"2026-11-06","blocked":0,"overdue":0,"planned":1,"completed":0,"time_zone":"Asia/Seoul","diff_minutes":-30,"actual_minutes":0,"estimate_minutes":30},"created_at":"2026-11-06T02:15:25.991Z"}
 ```
 
 #### 15. B가 계획 만들기 — ✅ 예상대로
 
 ```http
 POST /api/plans
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 
 {"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"B의 비밀 계획"}
 ```
 ```http
 HTTP 201
 
-{"id":"8e6495b4-cde4-48e8-89f3-7ae9da96c4e8","title":"B의 비밀 계획","user_id":"76133341-90cc-4ed1-981f-6e700bc7ffd4","version":1}
+{"id":"525841bb-58bf-4a3c-8279-3f08e56c70bb","title":"B의 비밀 계획","user_id":"f26ad1f2-4299-4826-80cd-fd802f6de009","version":1}
 ```
 
 #### 16. B가 할 일 만들기 — ✅ 예상대로
 
 ```http
-POST /api/plans/8e6495b4-cde4-48e8-89f3-7ae9da96c4e8/tasks
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+POST /api/plans/525841bb-58bf-4a3c-8279-3f08e56c70bb/tasks
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 
 {"title":"B의 할 일","due_date":"2026-11-07","priority":2,"estimate_minutes":30}
 ```
 ```http
 HTTP 201
 
-{"id":"abc84678-b20b-4e17-bec2-6beca7d4f74a","plan_id":"8e6495b4-cde4-48e8-89f3-7ae9da96c4e8","title":"B의 할 일","status":"in_progress","due_date":"2026-11-07","priority":2,"tags":[],"estimate_minutes":30,"completed_at":null,"deleted_at":null,"created_at":"2026-11-06T01:50:04.453Z","updated_at":"2026-11-06T01:50:04.453Z","actual_minutes":0,"log_count":0,"is_blocked":false}
+{"id":"88eb386e-6baa-49d4-b488-6b6011ea2584","plan_id":"525841bb-58bf-4a3c-8279-3f08e56c70bb","title":"B의 할 일","status":"in_progress","due_date":"2026-11-07","priority":2,"tags":[],"estimate_minutes":30,"completed_at":null,"deleted_at":null,"created_at":"2026-11-06T02:15:26.000Z","updated_at":"2026-11-06T02:15:26.000Z","actual_minutes":0,"log_count":0,"is_blocked":false}
 ```
 
 #### 17. B가 돌아보기 저장 — ✅ 예상대로
 
 ```http
-POST /api/plans/8e6495b4-cde4-48e8-89f3-7ae9da96c4e8/reviews
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+POST /api/plans/525841bb-58bf-4a3c-8279-3f08e56c70bb/reviews
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 
 {"improvement":"B의 고칠 점"}
 ```
 ```http
 HTTP 201
 
-{"id":"a3f4998d-5251-4eb0-9c90-789dadb58431","plan_id":"8e6495b4-cde4-48e8-89f3-7ae9da96c4e8","improvement":"B의 고칠 점","summary":{"today":"2026-11-06","blocked":0,"overdue":0,"planned":1,"completed":0,"time_zone":"Asia/Seoul","diff_minutes":-30,"actual_minutes":0,"estimate_minutes":30},"created_at":"2026-11-06T01:50:04.461Z"}
+{"id":"08ce1d9d-680e-48ce-bc75-1bb27d9cccdf","plan_id":"525841bb-58bf-4a3c-8279-3f08e56c70bb","improvement":"B의 고칠 점","summary":{"today":"2026-11-06","blocked":0,"overdue":0,"planned":1,"completed":0,"time_zone":"Asia/Seoul","diff_minutes":-30,"actual_minutes":0,"estimate_minutes":30},"created_at":"2026-11-06T02:15:26.006Z"}
 ```
 
 #### 18. A의 고칠 점 목록 (A 것 1건) — ✅ 예상대로
 
 ```http
 GET /api/reviews
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 200
@@ -263,20 +263,20 @@ HTTP 200
 #### 19. [성공] 주인 B가 자기 계획 읽기 — ✅ 예상대로
 
 ```http
-GET /api/plans/8e6495b4-cde4-48e8-89f3-7ae9da96c4e8
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+GET /api/plans/525841bb-58bf-4a3c-8279-3f08e56c70bb
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 ```
 ```http
 HTTP 200
 
-{"id":"8e6495b4-cde4-48e8-89f3-7ae9da96c4e8","title":"B의 비밀 계획","user_id":"76133341-90cc-4ed1-981f-6e700bc7ffd4","version":1}
+{"id":"525841bb-58bf-4a3c-8279-3f08e56c70bb","title":"B의 비밀 계획","user_id":"f26ad1f2-4299-4826-80cd-fd802f6de009","version":1}
 ```
 
 #### 20. [거절·읽기] A가 같은 주소로 B 계획 읽기 — ✅ 예상대로
 
 ```http
-GET /api/plans/8e6495b4-cde4-48e8-89f3-7ae9da96c4e8
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+GET /api/plans/525841bb-58bf-4a3c-8279-3f08e56c70bb
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 404
@@ -287,8 +287,8 @@ HTTP 404
 #### 21. [거절·읽기] A가 B 할 일 목록 읽기 — ✅ 예상대로
 
 ```http
-GET /api/plans/8e6495b4-cde4-48e8-89f3-7ae9da96c4e8/tasks
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+GET /api/plans/525841bb-58bf-4a3c-8279-3f08e56c70bb/tasks
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 404
@@ -299,22 +299,22 @@ HTTP 404
 #### 22. [성공] 주인 B가 자기 할 일 이름 바꾸기 (같은 이름으로 다시 저장) — ✅ 예상대로
 
 ```http
-PATCH /api/tasks/abc84678-b20b-4e17-bec2-6beca7d4f74a
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+PATCH /api/tasks/88eb386e-6baa-49d4-b488-6b6011ea2584
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 
 {"title":"B의 할 일"}
 ```
 ```http
 HTTP 200
 
-{"id":"abc84678-b20b-4e17-bec2-6beca7d4f74a","plan_id":"8e6495b4-cde4-48e8-89f3-7ae9da96c4e8","title":"B의 할 일","status":"in_progress","due_date":"2026-11-07","priority":2,"tags":[],"estimate_minutes":30,"completed_at":null,"deleted_at":null,"created_at":"2026-11-06T01:50:04.453Z","updated_at":"2026-11-06T01:50:04.502Z","actual_minutes":0,"log_count":0,"is_blocked":false}
+{"id":"88eb386e-6baa-49d4-b488-6b6011ea2584","plan_id":"525841bb-58bf-4a3c-8279-3f08e56c70bb","title":"B의 할 일","status":"in_progress","due_date":"2026-11-07","priority":2,"tags":[],"estimate_minutes":30,"completed_at":null,"deleted_at":null,"created_at":"2026-11-06T02:15:26.000Z","updated_at":"2026-11-06T02:15:26.047Z","actual_minutes":0,"log_count":0,"is_blocked":false}
 ```
 
 #### 23. [거절·고치기] A가 같은 주소로 B 할 일 이름 바꾸기 — ✅ 예상대로
 
 ```http
-PATCH /api/tasks/abc84678-b20b-4e17-bec2-6beca7d4f74a
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+PATCH /api/tasks/88eb386e-6baa-49d4-b488-6b6011ea2584
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 
 {"title":"빼앗음"}
 ```
@@ -327,8 +327,8 @@ HTTP 404
 #### 24. [거절·고치기] A가 B 계획 고치기 — ✅ 예상대로
 
 ```http
-PUT /api/plans/8e6495b4-cde4-48e8-89f3-7ae9da96c4e8
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+PUT /api/plans/525841bb-58bf-4a3c-8279-3f08e56c70bb
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 
 {"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"빼앗음"}
 ```
@@ -341,8 +341,8 @@ HTTP 404
 #### 25. [거절·고치기] A가 B 할 일 완료 누르기 — ✅ 예상대로
 
 ```http
-POST /api/tasks/abc84678-b20b-4e17-bec2-6beca7d4f74a/complete
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+POST /api/tasks/88eb386e-6baa-49d4-b488-6b6011ea2584/complete
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 404
@@ -353,8 +353,8 @@ HTTP 404
 #### 26. [거절·고치기] A가 B 계획에 할 일 끼워 넣기 — ✅ 예상대로
 
 ```http
-POST /api/plans/8e6495b4-cde4-48e8-89f3-7ae9da96c4e8/tasks
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+POST /api/plans/525841bb-58bf-4a3c-8279-3f08e56c70bb/tasks
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 
 {"title":"끼워 넣기","due_date":"2026-11-07","priority":1,"estimate_minutes":1}
 ```
@@ -367,8 +367,8 @@ HTTP 404
 #### 27. [거절·지우기] A가 B 할 일 지우기 — ✅ 예상대로
 
 ```http
-DELETE /api/tasks/abc84678-b20b-4e17-bec2-6beca7d4f74a
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+DELETE /api/tasks/88eb386e-6baa-49d4-b488-6b6011ea2584
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 404
@@ -380,9 +380,9 @@ HTTP 404
 
 ```http
 POST /api/plans
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 
-{"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"넘겨받기 시도","carried_review_id":"a3f4998d-5251-4eb0-9c90-789dadb58431"}
+{"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"넘겨받기 시도","carried_review_id":"08ce1d9d-680e-48ce-bc75-1bb27d9cccdf"}
 ```
 ```http
 HTTP 400
@@ -394,7 +394,7 @@ HTTP 400
 
 ```http
 GET /api/plans
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 200
@@ -406,7 +406,7 @@ HTTP 200
 
 ```http
 GET /api/reviews
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 200
@@ -418,12 +418,12 @@ HTTP 200
 
 ```http
 GET /api/export
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 200
 
-{"user":{"id":"83e9bf50-625e-4cfc-bb17-e0707ec464e8","email":"verify-a-155d93@example.com"},"plans":["A의 비밀 계획"],"tasks":["A의 할 일"],"reviews":["A의 고칠 점"],"diary_entries":0}
+{"user":{"id":"3afc1559-a4e4-484a-b4f8-d7d03cd34b1d","email":"verify-a-e3c981@example.com"},"plans":["A의 비밀 계획"],"tasks":["A의 할 일"],"reviews":["A의 고칠 점"],"diary_entries":0}
 ```
 
 ### ㄹ. [확인 2] B가 A의 자료 읽기·고치기·지우기 → 모두 거절 (B → A)
@@ -431,20 +431,20 @@ HTTP 200
 #### 32. [성공] 주인 A가 자기 계획 읽기 — ✅ 예상대로
 
 ```http
-GET /api/plans/248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+GET /api/plans/8d079d1c-5e04-4614-b801-e6000f27c27e
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 200
 
-{"id":"248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e","title":"A의 비밀 계획","user_id":"83e9bf50-625e-4cfc-bb17-e0707ec464e8","version":1}
+{"id":"8d079d1c-5e04-4614-b801-e6000f27c27e","title":"A의 비밀 계획","user_id":"3afc1559-a4e4-484a-b4f8-d7d03cd34b1d","version":1}
 ```
 
 #### 33. [거절·읽기] B가 같은 주소로 A 계획 읽기 — ✅ 예상대로
 
 ```http
-GET /api/plans/248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+GET /api/plans/8d079d1c-5e04-4614-b801-e6000f27c27e
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 ```
 ```http
 HTTP 404
@@ -455,8 +455,8 @@ HTTP 404
 #### 34. [거절·읽기] B가 A 할 일 목록 읽기 — ✅ 예상대로
 
 ```http
-GET /api/plans/248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e/tasks
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+GET /api/plans/8d079d1c-5e04-4614-b801-e6000f27c27e/tasks
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 ```
 ```http
 HTTP 404
@@ -467,22 +467,22 @@ HTTP 404
 #### 35. [성공] 주인 A가 자기 할 일 이름 바꾸기 (같은 이름으로 다시 저장) — ✅ 예상대로
 
 ```http
-PATCH /api/tasks/a3918d96-de5a-45f2-b11d-b68da8122d43
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+PATCH /api/tasks/a74ecb28-e94e-4913-a17e-9a637baada13
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 
 {"title":"A의 할 일"}
 ```
 ```http
 HTTP 200
 
-{"id":"a3918d96-de5a-45f2-b11d-b68da8122d43","plan_id":"248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e","title":"A의 할 일","status":"in_progress","due_date":"2026-11-07","priority":2,"tags":[],"estimate_minutes":30,"completed_at":null,"deleted_at":null,"created_at":"2026-11-06T01:50:04.418Z","updated_at":"2026-11-06T01:50:04.554Z","actual_minutes":0,"log_count":0,"is_blocked":false}
+{"id":"a74ecb28-e94e-4913-a17e-9a637baada13","plan_id":"8d079d1c-5e04-4614-b801-e6000f27c27e","title":"A의 할 일","status":"in_progress","due_date":"2026-11-07","priority":2,"tags":[],"estimate_minutes":30,"completed_at":null,"deleted_at":null,"created_at":"2026-11-06T02:15:25.967Z","updated_at":"2026-11-06T02:15:26.101Z","actual_minutes":0,"log_count":0,"is_blocked":false}
 ```
 
 #### 36. [거절·고치기] B가 같은 주소로 A 할 일 이름 바꾸기 — ✅ 예상대로
 
 ```http
-PATCH /api/tasks/a3918d96-de5a-45f2-b11d-b68da8122d43
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+PATCH /api/tasks/a74ecb28-e94e-4913-a17e-9a637baada13
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 
 {"title":"빼앗음"}
 ```
@@ -495,8 +495,8 @@ HTTP 404
 #### 37. [거절·고치기] B가 A 계획 고치기 — ✅ 예상대로
 
 ```http
-PUT /api/plans/248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+PUT /api/plans/8d079d1c-5e04-4614-b801-e6000f27c27e
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 
 {"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"빼앗음"}
 ```
@@ -509,8 +509,8 @@ HTTP 404
 #### 38. [거절·고치기] B가 A 할 일 완료 누르기 — ✅ 예상대로
 
 ```http
-POST /api/tasks/a3918d96-de5a-45f2-b11d-b68da8122d43/complete
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+POST /api/tasks/a74ecb28-e94e-4913-a17e-9a637baada13/complete
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 ```
 ```http
 HTTP 404
@@ -521,8 +521,8 @@ HTTP 404
 #### 39. [거절·고치기] B가 A 계획에 할 일 끼워 넣기 — ✅ 예상대로
 
 ```http
-POST /api/plans/248d5a9f-cc7c-43ff-89c6-77d2ce6a7b0e/tasks
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+POST /api/plans/8d079d1c-5e04-4614-b801-e6000f27c27e/tasks
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 
 {"title":"끼워 넣기","due_date":"2026-11-07","priority":1,"estimate_minutes":1}
 ```
@@ -535,8 +535,8 @@ HTTP 404
 #### 40. [거절·지우기] B가 A 할 일 지우기 — ✅ 예상대로
 
 ```http
-DELETE /api/tasks/a3918d96-de5a-45f2-b11d-b68da8122d43
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+DELETE /api/tasks/a74ecb28-e94e-4913-a17e-9a637baada13
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 ```
 ```http
 HTTP 404
@@ -548,9 +548,9 @@ HTTP 404
 
 ```http
 POST /api/plans
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 
-{"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"넘겨받기 시도","carried_review_id":"d6b4a8c2-0231-431a-86dc-a06cdf4631fc"}
+{"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"넘겨받기 시도","carried_review_id":"25e7dabc-43ef-4001-85ce-b1d599d4960c"}
 ```
 ```http
 HTTP 400
@@ -562,7 +562,7 @@ HTTP 400
 
 ```http
 GET /api/plans
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 ```
 ```http
 HTTP 200
@@ -574,7 +574,7 @@ HTTP 200
 
 ```http
 GET /api/reviews
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 ```
 ```http
 HTTP 200
@@ -586,12 +586,12 @@ HTTP 200
 
 ```http
 GET /api/export
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 ```
 ```http
 HTTP 200
 
-{"user":{"id":"76133341-90cc-4ed1-981f-6e700bc7ffd4","email":"verify-b-155d93@example.com"},"plans":["B의 비밀 계획"],"tasks":["B의 할 일"],"reviews":["B의 고칠 점"],"diary_entries":0}
+{"user":{"id":"f26ad1f2-4299-4826-80cd-fd802f6de009","email":"verify-b-e3c981@example.com"},"plans":["B의 비밀 계획"],"tasks":["B의 할 일"],"reviews":["B의 고칠 점"],"diary_entries":0}
 ```
 
 #### 거절 앞뒤로 센 자료 건수 (주인이 자기 쿠키로 센 값)
@@ -601,13 +601,13 @@ HTTP 200
 | A | {"계획":1,"할일":1,"돌아보기":1,"할일_상태":"A의 할 일/in_progress"} | {"계획":1,"할일":1,"돌아보기":1,"할일_상태":"A의 할 일/in_progress"} | ✅ 같음 |
 | B | {"계획":1,"할일":1,"돌아보기":1,"할일_상태":"B의 할 일/in_progress"} | {"계획":1,"할일":1,"돌아보기":1,"할일_상태":"B의 할 일/in_progress"} | ✅ 같음 |
 
-### ㅁ. [확인 3] 주소·헤더·본문에 다른 계정(B의 id 76133341-90cc-4ed1-981f-6e700bc7ffd4)을 적어 보내기 → 그래도 A 자료만
+### ㅁ. [확인 3] 주소·헤더·본문에 다른 계정(B의 id f26ad1f2-4299-4826-80cd-fd802f6de009)을 적어 보내기 → 그래도 A 자료만
 
 #### 45. 주소(쿼리)에 B의 id — ✅ 예상대로
 
 ```http
-GET /api/plans?user_id=76133341-90cc-4ed1-981f-6e700bc7ffd4
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+GET /api/plans?user_id=f26ad1f2-4299-4826-80cd-fd802f6de009
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 200
@@ -619,8 +619,8 @@ HTTP 200
 
 ```http
 GET /api/plans
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
-X-User-Id: 76133341-90cc-4ed1-981f-6e700bc7ffd4
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
+X-User-Id: f26ad1f2-4299-4826-80cd-fd802f6de009
 ```
 ```http
 HTTP 200
@@ -632,14 +632,14 @@ HTTP 200
 
 ```http
 POST /api/plans
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 
-{"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"A가 B 이름으로 만들려던 계획","user_id":"76133341-90cc-4ed1-981f-6e700bc7ffd4"}
+{"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"A가 B 이름으로 만들려던 계획","user_id":"f26ad1f2-4299-4826-80cd-fd802f6de009"}
 ```
 ```http
 HTTP 201
 
-{"id":"29e1995a-8623-46e2-8e68-9b587af83f79","title":"A가 B 이름으로 만들려던 계획","user_id":"83e9bf50-625e-4cfc-bb17-e0707ec464e8","version":1}
+{"id":"f3de7556-e70c-464f-aa88-4ebf495f66a3","title":"A가 B 이름으로 만들려던 계획","user_id":"3afc1559-a4e4-484a-b4f8-d7d03cd34b1d","version":1}
 ```
 > 본문의 user_id 는 무시되고 로그인한 A의 계획으로 만들어집니다(응답의 user_id 를 보세요).
 
@@ -647,7 +647,7 @@ HTTP 201
 
 ```http
 GET /api/plans
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 ```
 ```http
 HTTP 200
@@ -661,7 +661,7 @@ HTTP 200
 
 ```http
 GET /api/plans
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 200
@@ -673,7 +673,7 @@ HTTP 200
 
 ```http
 POST /api/auth/logout
-Cookie: pds_sid=cxm3x…생략   ← A의 세션
+Cookie: pds_sid=2kS4v…생략   ← A의 세션
 ```
 ```http
 HTTP 204
@@ -684,7 +684,7 @@ Set-Cookie: pds_sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0
 
 ```http
 GET /api/plans
-Cookie: pds_sid=cxm3x…생략
+Cookie: pds_sid=2kS4v…생략
 ```
 ```http
 HTTP 401
@@ -697,7 +697,7 @@ Set-Cookie: pds_sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0
 
 ```http
 POST /api/plans
-Cookie: pds_sid=cxm3x…생략
+Cookie: pds_sid=2kS4v…생략
 
 {"start_date":"2026-11-06","end_date":"2026-11-10","priority":1,"success_criteria":"확인용","estimate_minutes":60,"title":"로그아웃 뒤"}
 ```
@@ -714,7 +714,7 @@ Set-Cookie: pds_sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0
 
 ```http
 GET /api/plans
-Cookie: pds_sid=hNkG5…생략
+Cookie: pds_sid=pwsR-…생략
 ```
 ```http
 HTTP 200
@@ -726,22 +726,22 @@ HTTP 200
 
 ```http
 POST /api/auth/password
-Cookie: pds_sid=hNkG5…생략
+Cookie: pds_sid=pwsR-…생략
 
-{"current_password":"Pw-Sa…생략","new_password":"Nw-lP…생략"}
+{"current_password":"Pw-FH…생략","new_password":"Nw-Yj…생략"}
 ```
 ```http
 HTTP 200
-Set-Cookie: pds_sid=94Vkq…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800
+Set-Cookie: pds_sid=a8M25…생략; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800
 
-{"user":{"id":"83e9bf50-625e-4cfc-bb17-e0707ec464e8","email":"verify-a-155d93@example.com"}}
+{"user":{"id":"3afc1559-a4e4-484a-b4f8-d7d03cd34b1d","email":"verify-a-e3c981@example.com"}}
 ```
 
 #### 55. [거절] 바꾼 뒤: 똑같은 예전 쿠키 값으로 GET /api/plans — ✅ 예상대로
 
 ```http
 GET /api/plans
-Cookie: pds_sid=hNkG5…생략
+Cookie: pds_sid=pwsR-…생략
 ```
 ```http
 HTTP 401
@@ -754,7 +754,7 @@ Set-Cookie: pds_sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0
 
 ```http
 GET /api/plans
-Cookie: pds_sid=94Vkq…생략   ← A의 세션
+Cookie: pds_sid=a8M25…생략   ← A의 세션
 ```
 ```http
 HTTP 200
@@ -768,7 +768,7 @@ HTTP 200
 POST /api/auth/login
 Cookie: (보내지 않음)
 
-{"email":"verify-a-155d93@example.com","password":"Pw-Sa…생략"}
+{"email":"verify-a-e3c981@example.com","password":"Pw-FH…생략"}
 ```
 ```http
 HTTP 401
@@ -785,10 +785,10 @@ HTTP 401
 SELECT email, password_hash FROM users ORDER BY email;   -- B 가입 직후
 ```
 ```text
-verify-a-155d93@example.com | scrypt$32768$8$1$ajD9Utodb8/8ZOIF1dzW8Q==$/gVT/I2DcAZolGARHrQzN7S9wNxNj350AGQDmUTBdlY=
-verify-b-155d93@example.com | scrypt$32768$8$1$QIGCb6HfIlBWTMSKlNSW+Q==$z18xAhXmEO8COvI0cFmkD1AYmIXHrp7y+h/bd1lbNU4=
+verify-a-e3c981@example.com | scrypt$32768$8$1$pNZ5DeivJhpZ3j1saynQBA==$mGHYdmYVyajGyoUVT93WixehvumMlZPXN69+57wQ47o=
+verify-b-e3c981@example.com | scrypt$32768$8$1$Q4vWklyLaT4zGtFVMcgUOw==$62Z+sP6Pfq5aCVLAeRgI4pif1p57s7Jr1oR19QlqpXc=
 ```
-- 같은 비밀번호인데 두 저장값이 서로 다른가? → **다름 ✅** (소금이 다름: `ajD9Utodb8/8ZOIF1dzW8Q==` vs `QIGCb6HfIlBWTMSKlNSW+Q==`)
+- 같은 비밀번호인데 두 저장값이 서로 다른가? → **다름 ✅** (소금이 다름: `pNZ5DeivJhpZ3j1saynQBA==` vs `Q4vWklyLaT4zGtFVMcgUOw==`)
 - 입력한 비밀번호 글자가 저장값 안에 들어 있나? → **아니오 ✅**
 - 지금 남은 세션 행 2개, 그중 쿠키 원문과 같은 값이 저장된 행 **0개** (SHA-256 값만 저장)
 
@@ -798,7 +798,7 @@ verify-b-155d93@example.com | scrypt$32768$8$1$QIGCb6HfIlBWTMSKlNSW+Q==$z18xAhXm
 
 ```http
 DELETE /api/auth/account
-Cookie: pds_sid=94Vkq…생략   ← A의 세션
+Cookie: pds_sid=a8M25…생략   ← A의 세션
 
 {"password":"wrong…생략"}
 ```
@@ -812,9 +812,9 @@ HTTP 400
 
 ```http
 DELETE /api/auth/account
-Cookie: pds_sid=94Vkq…생략   ← A의 세션
+Cookie: pds_sid=a8M25…생략   ← A의 세션
 
-{"password":"Nw-lP…생략"}
+{"password":"Nw-Yj…생략"}
 ```
 ```http
 HTTP 204
@@ -825,7 +825,7 @@ Set-Cookie: pds_sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0
 
 ```http
 GET /api/plans
-Cookie: pds_sid=94Vkq…생략
+Cookie: pds_sid=a8M25…생략
 ```
 ```http
 HTTP 401
@@ -840,7 +840,7 @@ Set-Cookie: pds_sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0
 POST /api/auth/login
 Cookie: (보내지 않음)
 
-{"email":"verify-a-155d93@example.com","password":"Nw-lP…생략"}
+{"email":"verify-a-e3c981@example.com","password":"Nw-Yj…생략"}
 ```
 ```http
 HTTP 401
@@ -852,7 +852,7 @@ HTTP 401
 
 ```http
 GET /api/plans
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 ```
 ```http
 HTTP 200
@@ -864,9 +864,9 @@ HTTP 200
 
 ```http
 DELETE /api/auth/account
-Cookie: pds_sid=J0btl…생략   ← B의 세션
+Cookie: pds_sid=Rf3bq…생략   ← B의 세션
 
-{"password":"Pw-Sa…생략"}
+{"password":"Pw-FH…생략"}
 ```
 ```http
 HTTP 204

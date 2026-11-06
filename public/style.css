@@ -245,3 +245,9 @@ table.diary tr.rule-row td { background: var(--block-soft); }
 .danger-zone { border-color: var(--late); }
 .warn { color: var(--late); font-weight: 600; }
 @media (max-width: 560px) { .rules { grid-template-columns: 1fr; } }
+
+/* GitHub·Google 로그인 버튼 */
+.social { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.social:empty { display: none; }
+.social-btn { width: 100%; }
+.social .or { text-align: center; color: var(--muted); font-size: .85rem; margin: 6px 0 2px; }
